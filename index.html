@@ -1,0 +1,1628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Global Conquest: Continents, 4D & Chat Masterpiece</title>
+    
+    <!-- Premium Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Space+Grotesk:wght@500;700;900&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; overflow: hidden; margin: 0; user-select: none; touch-action: none; }
+        .map-bg { background: radial-gradient(circle at center, #ffffff 0%, #cbd5e1 100%); width: 100vw; height: 100vh; position: relative; }
+        
+        /* 4D Moving Clouds Layer */
+        .clouds { position: absolute; inset: 0; background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" opacity="0.05"><circle cx="150" cy="150" r="100" fill="%2394a3b8" filter="blur(40px)"/><circle cx="400" cy="300" r="150" fill="%2364748b" filter="blur(60px)"/></svg>'); animation: drift 80s linear infinite; pointer-events: none; z-index: 5; }
+        @keyframes drift { from { background-position: 0 0; } to { background-position: 2000px 1000px; } }
+
+        /* 3D Map Effects - LIGHT THEME */
+        .country-surface { stroke: #ffffff; stroke-width: 2.5; stroke-linejoin: round; transition: filter 0.2s ease, transform 0.2s; cursor: pointer; pointer-events: auto; transform-origin: center; }
+        .country-surface:hover { filter: brightness(1.1); transform: scale(1.005); }
+        .water-body { fill: #38bdf8; opacity: 0.15; pointer-events: none; filter: drop-shadow(inset 0 0 80px rgba(2,132,199,0.3)); }
+        
+        .country-base { fill: #e2e8f0; stroke: #94a3b8; stroke-width: 3; stroke-linejoin: round; filter: drop-shadow(0px 15px 25px rgba(0,0,0,0.15)); pointer-events: none; }
+        .country-highlight { fill: none; stroke: rgba(255,255,255,0.9); stroke-width: 2; pointer-events: none; }
+
+        .army-text { font-family: 'Space Grotesk', sans-serif; font-size: 24px; font-weight: 900; fill: #ffffff; text-anchor: middle; dominant-baseline: central; pointer-events: none; text-shadow: 0px 3px 6px rgba(0,0,0,0.7); }
+        .wall-text { font-family: 'Space Grotesk', sans-serif; font-size: 14px; font-weight: 800; fill: #bae6fd; text-anchor: middle; dominant-baseline: central; pointer-events: none; text-shadow: 0px 2px 4px rgba(0,0,0,0.8); }
+        .info-text { font-family: 'Space Grotesk', sans-serif; font-size: 14px; font-weight: 900; fill: #0f172a; text-anchor: middle; dominant-baseline: central; pointer-events: none; text-shadow: 0px 2px 4px rgba(255,255,255,0.8); }
+        
+        .continent-label { font-family: 'Space Grotesk', sans-serif; font-size: 90px; font-weight: 900; fill: rgba(15,23,42,0.06); text-anchor: middle; pointer-events: none; letter-spacing: 30px; }
+
+        .shield-fence { fill: none; stroke: #38bdf8; stroke-width: 10; stroke-dasharray: 20, 20; animation: rotateFence 8s linear infinite; pointer-events: none; filter: drop-shadow(0 0 10px rgba(56,189,248,0.6)); }
+        .ultimate-fence { fill: none; stroke: #eab308; stroke-width: 12; stroke-dasharray: 30, 15; animation: rotateFence 4s linear infinite; pointer-events: none; filter: drop-shadow(0 0 15px rgba(234,179,8,0.6)); }
+        
+        @keyframes rotateFence { to { stroke-dashoffset: 100; } }
+
+        .aura-glow { animation: pulse-aura 2s infinite alternate; }
+        @keyframes pulse-aura { 0% { filter: drop-shadow(0 0 5px rgba(255,255,255,0.5)); } 100% { filter: drop-shadow(0 0 25px rgba(255,255,255,1)); } }
+
+        .nmc-glow { animation: pulse-nmc 1s infinite alternate; }
+        @keyframes pulse-nmc { 0% { filter: drop-shadow(0 0 15px rgba(239,68,68,0.6)); } 100% { filter: drop-shadow(0 0 40px rgba(239,68,68,0.9)); } }
+
+        .drag-line { stroke: #0f172a; stroke-width: 8; stroke-dasharray: 15, 15; animation: dash 0.5s linear infinite; pointer-events: none; opacity: 0.7; filter: drop-shadow(0px 5px 10px rgba(0,0,0,0.2)); }
+        @keyframes dash { to { stroke-dashoffset: -30; } }
+
+        .combat-popup { font-family: 'Space Grotesk', sans-serif; font-weight: 900; pointer-events: none; animation: floatUp 1.5s ease-out forwards; text-shadow: 0 4px 8px rgba(0,0,0,0.4); z-index: 10; }
+        @keyframes floatUp { 0% { opacity: 1; transform: translateY(0) scale(0.8); } 30% { transform: translateY(-35px) scale(1.4); } 100% { opacity: 0; transform: translateY(-90px) scale(1); } }
+
+        .shockwave { fill: #ef4444; opacity: 0.6; animation: expandShock 1.5s cubic-bezier(0.1, 0.8, 0.3, 1) forwards; pointer-events: none; }
+        @keyframes expandShock { 0% { r: 0; opacity: 0.8; } 100% { r: 500px; opacity: 0; } }
+
+        .emp-shockwave { fill: #8b5cf6; opacity: 0.5; animation: expandEmp 2s cubic-bezier(0.1, 0.8, 0.3, 1) forwards; pointer-events: none; }
+        @keyframes expandEmp { 0% { r: 0; opacity: 0.7; stroke-width: 20px; stroke: #c084fc; } 100% { r: 600px; opacity: 0; stroke-width: 2px; stroke: #c084fc; } }
+
+        /* HD Weapon Tracers & Real Lightning */
+        .tracer { stroke: #fbbf24; stroke-width: 5; opacity: 0.9; animation: fadeOut 0.2s ease-out forwards; pointer-events: none; filter: drop-shadow(0 0 6px #f59e0b); }
+        .mg-tracer { stroke: #fde047; stroke-width: 4; stroke-dasharray: 10 20; animation: bulletStream 0.15s linear infinite, fadeOut 0.3s ease-out forwards; pointer-events: none; filter: drop-shadow(0 0 5px #eab308); }
+        @keyframes bulletStream { to { stroke-dashoffset: -30; } }
+        
+        .laser-beam-outer { stroke: #ff0000; stroke-width: 50; opacity: 0.8; animation: fadeOutLaser 1s ease-out forwards; pointer-events: none; filter: drop-shadow(0 0 40px #ff0000); stroke-linecap: round; }
+        .laser-beam-inner { stroke: #ffffff; stroke-width: 18; opacity: 1; animation: fadeOutLaser 1s ease-out forwards; pointer-events: none; stroke-linecap: round; }
+        
+        .auto-rifle-outer { stroke: #22c55e; stroke-width: 30; opacity: 0.8; animation: fadeOutLaser 0.5s ease-out forwards; pointer-events: none; filter: drop-shadow(0 0 30px #22c55e); stroke-linecap: round; }
+        .auto-rifle-inner { stroke: #ffffff; stroke-width: 10; opacity: 1; animation: fadeOutLaser 0.5s ease-out forwards; pointer-events: none; stroke-linecap: round; }
+
+        .carrier-aa-outer { stroke: #3b82f6; stroke-width: 20; opacity: 0.8; animation: fadeOutLaser 0.3s ease-out forwards; pointer-events: none; filter: drop-shadow(0 0 20px #3b82f6); stroke-linecap: round; }
+        .carrier-aa-inner { stroke: #ffffff; stroke-width: 6; opacity: 1; animation: fadeOutLaser 0.3s ease-out forwards; pointer-events: none; stroke-linecap: round; }
+        
+        /* 4D PURE WHITE HD LIGHTNING */
+        .white-lightning { fill: none; stroke: #ffffff; stroke-width: 7; filter: drop-shadow(0 0 10px #ffffff) drop-shadow(0 0 30px #ffffff); animation: lightningFlicker 0.1s infinite alternate, fadeOut 0.6s ease-in forwards; pointer-events: none; stroke-linejoin: miter; stroke-linecap: round;}
+        
+        /* 4D PURE RED HD LIGHTNING */
+        .red-lightning { fill: none; stroke: #ff0000; stroke-width: 8; filter: drop-shadow(0 0 15px #ff0000) drop-shadow(0 0 40px #dc2626); animation: lightningFlicker 0.08s infinite alternate, fadeOut 0.5s ease-in forwards; pointer-events: none; stroke-linejoin: miter; stroke-linecap: round;}
+        
+        @keyframes lightningFlicker { 0% { opacity: 0.7; stroke-width: 4; } 100% { opacity: 1; stroke-width: 10; } }
+        @keyframes fadeOutLaser { 0% { opacity: 1; } 100% { opacity: 0; stroke-width: 2; } }
+        .ballistic-trail { stroke: #f97316; stroke-width: 10; stroke-dasharray: 25 15; opacity: 0.9; animation: dash 0.2s linear infinite; pointer-events: none; filter: drop-shadow(0 0 10px #ea580c); }
+        @keyframes fadeOut { to { opacity: 0; stroke-width: 0; } }
+
+        /* UI Panels */
+        .btn-3d { transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1); border-bottom-width: 4px; position: relative; }
+        .btn-3d:active { border-bottom-width: 0px; transform: translateY(4px); }
+        
+        .sidebar { transform: translateX(100%); transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        .sidebar.open { transform: translateX(0); }
+
+        .panel-3d { background: linear-gradient(145deg, #ffffff, #f8fafc); border: 1px solid #e2e8f0; box-shadow: 0 10px 25px rgba(0,0,0,0.1), inset 0 2px 0 rgba(255,255,255,1); border-radius: 16px; color: #0f172a; }
+        
+        .targeting-mode { cursor: crosshair !important; }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        table { border-collapse: separate; border-spacing: 0; width: 100%; color: #0f172a; }
+        th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid #e2e8f0; font-family: 'Plus Jakarta Sans', sans-serif; }
+        th { background: #f1f5f9; font-weight: 800; color: #475569; position: sticky; top: 0; z-index: 10; text-transform: uppercase; letter-spacing: 1px; font-size: 11px; }
+        td { font-weight: 700; font-size: 14px; }
+        tr:hover td { background: #f8fafc; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel" data-type="module">
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let soundEnabled = true;
+        
+        function playSound(type) {
+            if (!soundEnabled || audioCtx.state === 'suspended') return;
+            const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            const now = audioCtx.currentTime;
+
+            switch(type) {
+                case 'army': osc.type = 'square'; osc.frequency.setValueAtTime(100, now); osc.frequency.exponentialRampToValueAtTime(30, now+0.15); gain.gain.setValueAtTime(0.15, now); gain.gain.exponentialRampToValueAtTime(0.01, now+0.15); osc.start(now); osc.stop(now+0.15); break;
+                case 'airforce': osc.type = 'sawtooth'; osc.frequency.setValueAtTime(800, now); osc.frequency.exponentialRampToValueAtTime(100, now+0.4); gain.gain.setValueAtTime(0.05, now); gain.gain.linearRampToValueAtTime(0, now+0.4); osc.start(now); osc.stop(now+0.4); break;
+                case 'naval': osc.type = 'sine'; osc.frequency.setValueAtTime(60, now); osc.frequency.setValueAtTime(55, now+0.6); gain.gain.setValueAtTime(0.2, now); gain.gain.linearRampToValueAtTime(0, now+0.6); osc.start(now); osc.stop(now+0.6); break;
+                case 'capture': osc.type = 'triangle'; osc.frequency.setValueAtTime(440, now); osc.frequency.setValueAtTime(660, now+0.1); osc.frequency.setValueAtTime(880, now+0.2); gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0, now+0.4); osc.start(now); osc.stop(now+0.4); break;
+                case 'nuke': osc.type = 'sawtooth'; osc.frequency.setValueAtTime(80, now); osc.frequency.exponentialRampToValueAtTime(10, now+2); gain.gain.setValueAtTime(0.4, now); gain.gain.exponentialRampToValueAtTime(0.01, now+2); osc.start(now); osc.stop(now+2); break;
+                case 'laser': osc.type = 'sawtooth'; osc.frequency.setValueAtTime(50, now); osc.frequency.linearRampToValueAtTime(300, now+0.8); gain.gain.setValueAtTime(0.5, now); gain.gain.exponentialRampToValueAtTime(0.01, now+0.8); osc.start(now); osc.stop(now+0.8); break;
+                case 'orbital': osc.type = 'square'; osc.frequency.setValueAtTime(1000, now); osc.frequency.exponentialRampToValueAtTime(50, now+1.5); gain.gain.setValueAtTime(0.5, now); gain.gain.linearRampToValueAtTime(0, now+1.5); osc.start(now); osc.stop(now+1.5); break;
+                case 'emp': osc.type = 'sine'; osc.frequency.setValueAtTime(1500, now); osc.frequency.linearRampToValueAtTime(200, now+1.0); gain.gain.setValueAtTime(0.3, now); gain.gain.linearRampToValueAtTime(0, now+1.0); osc.start(now); osc.stop(now+1.0); break;
+                case 'ballistic': osc.type = 'square'; osc.frequency.setValueAtTime(300, now); osc.frequency.exponentialRampToValueAtTime(50, now+1.0); gain.gain.setValueAtTime(0.3, now); gain.gain.linearRampToValueAtTime(0, now+1.0); osc.start(now); osc.stop(now+1.0); break;
+                case 'cannon': osc.type = 'square'; osc.frequency.setValueAtTime(600, now); osc.frequency.exponentialRampToValueAtTime(100, now+0.05); gain.gain.setValueAtTime(0.05, now); gain.gain.exponentialRampToValueAtTime(0.01, now+0.05); osc.start(now); osc.stop(now+0.05); break;
+                case 'error': osc.type = 'sawtooth'; osc.frequency.setValueAtTime(120, now); gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0, now+0.2); osc.start(now); osc.stop(now+0.2); break;
+                case 'upgrade': osc.type = 'sine'; osc.frequency.setValueAtTime(1200, now); osc.frequency.exponentialRampToValueAtTime(2000, now+0.3); gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0, now+0.3); osc.start(now); osc.stop(now+0.3); break;
+                case 'lightning': osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, now); osc.frequency.linearRampToValueAtTime(4000, now+0.5); gain.gain.setValueAtTime(0.5, now); gain.gain.exponentialRampToValueAtTime(0.01, now+0.5); osc.start(now); osc.stop(now+0.5); break;
+                case 'redlightning': osc.type = 'sawtooth'; osc.frequency.setValueAtTime(50, now); osc.frequency.linearRampToValueAtTime(1000, now+0.8); gain.gain.setValueAtTime(0.6, now); gain.gain.exponentialRampToValueAtTime(0.01, now+0.8); osc.start(now); osc.stop(now+0.8); break;
+            }
+        }
+
+        const Icon = ({ name, size = 20, className = "" }) => {
+            const paths = {
+                Settings: <><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></>,
+                Rocket: <><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></>,
+                Shield: <><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></>,
+                Crosshair: <><circle cx="12" cy="12" r="10"/><line x1="22" x2="18" y1="12" y2="12"/><line x1="6" x2="2" y1="12" y2="12"/><line x1="12" x2="12" y1="6" y2="2"/><line x1="12" x2="12" y1="22" y2="18"/></>,
+                Zap: <><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></>,
+                Coins: <><circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/><path d="m16.71 13.88.7.71-2.82 2.82"/></>,
+                Skull: <><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><path d="M8 20v2h8v-2"/><path d="m12.5 17-.5-1-.5 1h1z"/><path d="M16 20a2 2 0 0 0 1.56-3.25 8 8 0 1 0-11.12 0A2 2 0 0 0 8 20"/></>,
+                Crown: <><path d="m2 4 3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14"/></>,
+                Sword: <><polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"/><line x1="13" x2="19" y1="19" y2="13"/><line x1="16" x2="20" y1="16" y2="20"/><line x1="19" x2="21" y1="21" y2="19"/></>,
+                Plane: <><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.2-1.1.6L3 8l6 4-4 4H2.5L1 17.5l4 1 1 4L7.5 21V18.5l4-4 4 6l1.2-.7c.4-.2.7-.6.6-1.1z"/></>,
+                Ship: <><path d="M2 21c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1 .6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M19.38 20A11.6 11.6 0 0 0 21 14l-9-4-9 4c0 2.9.94 5.34 2.81 7.76"/><path d="M19 13V7a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v6"/><path d="M12 10v4"/><path d="M12 2v3"/></>,
+                Lock: <><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></>,
+                Unlock: <><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></>,
+                ZoomIn: <><circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/><line x1="11" x2="11" y1="8" y2="14"/><line x1="8" x2="14" y1="11" y2="11"/></>,
+                ZoomOut: <><circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/><line x1="8" x2="14" y1="11" y2="11"/></>,
+                Target: <><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></>,
+                Flask: <><path d="M10 2v7.31L2 18.5A2 2 0 0 0 4 22h16a2 2 0 0 0 2-3.5L14 9.31V2"/><path d="M8.5 2h7"/><path d="M14 9.31L20 18.5"/><path d="M4 18.5L10 9.31"/></>,
+                Volume2: <><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></>,
+                VolumeX: <><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" x2="17" y1="9" y2="15"/><line x1="17" x2="23" y1="9" y2="15"/></>,
+                Play: <><polygon points="5 3 19 12 5 21 5 3"/></>,
+                Truck: <><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></>,
+                Radiation: <><path d="M12 12c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/><path d="M12 4.5A7.5 7.5 0 0 0 4.5 12h3c0-2.5 2-4.5 4.5-4.5V4.5z"/><path d="M19.5 12h-3c0 2.5-2 4.5-4.5 4.5v3a7.5 7.5 0 0 0 7.5-7.5z"/><path d="M4.5 12A7.5 7.5 0 0 0 12 19.5v-3A4.5 4.5 0 0 1 7.5 12h-3z"/></>,
+                Anchor: <><circle cx="12" cy="5" r="3"/><line x1="12" x2="12" y1="8" y2="22"/><line x1="5" x2="19" y1="12" y2="12"/><path d="M2 15a10 10 0 0 0 20 0"/></>,
+                Fence: <><path d="M4 4v16"/><path d="M20 4v16"/><path d="M4 12h16"/><path d="M4 8h16"/><path d="M4 16h16"/></>,
+                Eye: <><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></>,
+                EyeOff: <><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" y1="2" x2="22" y2="22"/></>,
+                Cpu: <><rect x="4" y="4" width="16" height="16" rx="2" ry="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></>,
+                Network: <><rect x="16" y="16" width="6" height="6" rx="1"/><rect x="2" y="16" width="6" height="6" rx="1"/><rect x="9" y="2" width="6" height="6" rx="1"/><path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3"/><path d="M12 12V8"/></>,
+                Radar: <><path d="M19.07 4.93A10 10 0 0 0 4.93 19.07"/><path d="M2 12h.01"/><path d="M22 12h.01"/><path d="M12 2v.01"/><path d="M12 22v.01"/><path d="M16.24 7.76A6 6 0 0 0 7.76 16.24"/><path d="M12 12a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/><path d="M12 12v10"/></>,
+                Activity: <><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></>,
+                Video: <><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="17" x2="22" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/></>,
+                BarChart: <><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></>,
+                MessageCircle: <><path d="m3 21 1.9-5.7a8.5 8.5 0 1 1 3.8 3.8z"/></>
+            };
+            return (
+                <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                    {paths[name] || <circle cx="12" cy="12" r="10" />}
+                </svg>
+            );
+        };
+
+        const WeaponBtn = ({icon, name, active, locked, onClick}) => (
+            <button onClick={locked ? null : onClick} className={`flex items-center gap-1.5 px-4 py-2 rounded-xl font-black text-[11px] transition-all btn-3d ${locked ? 'opacity-40 cursor-not-allowed text-slate-400 border-slate-200' : (active ? 'bg-blue-600 text-white shadow-md border-blue-800' : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300')}`}>
+                {icon} <span className="hidden md:inline font-['Space_Grotesk'] tracking-wide">{locked ? 'LOCKED' : name}</span>
+            </button>
+        );
+
+        const UpgradeRow = ({icon, name, lvl, cost, desc, canAfford, locked, req, maxLvl=10, onClick}) => {
+            const isMax = lvl >= maxLvl;
+            return (
+                <div className={`panel-3d p-3 border-b-4 ${locked ? 'border-red-200 bg-red-50/80' : 'border-slate-300 bg-white hover:shadow-md transition-all'}`}>
+                    <div className="flex justify-between items-center mb-1">
+                        <div className="flex items-center gap-2 text-xs font-black text-slate-800 font-['Space_Grotesk'] tracking-tight">{icon} {name}</div>
+                        <div className="text-[9px] bg-slate-800 text-white px-2 py-0.5 rounded-md font-bold tracking-widest shadow-inner">LVL {lvl}/{maxLvl}</div>
+                    </div>
+                    <p className="text-[9px] text-slate-500 mb-2 font-bold leading-relaxed">{desc}</p>
+                    {locked ? (
+                        <div className="text-red-600 text-[9px] font-black text-center bg-red-100 py-1.5 rounded-lg border border-red-200 tracking-widest">REQUIRES {req.toUpperCase()}</div>
+                    ) : (
+                        <button onClick={onClick} disabled={!canAfford || isMax} className={`w-full py-1.5 rounded-lg text-[10px] font-black transition-all btn-3d tracking-widest ${isMax ? 'bg-emerald-100 text-emerald-700 border-emerald-200 cursor-default' : (canAfford ? 'bg-slate-800 hover:bg-slate-700 text-white shadow-md border-slate-900' : 'bg-slate-100 text-slate-400 border-slate-200')}`}>
+                            {isMax ? 'MAXED OUT' : `UPGRADE (${cost}g)`}
+                        </button>
+                    )}
+                </div>
+            );
+        };
+
+        const WEAPONS = { ARMY: 0, AIR: 1, NAVAL: 2 };
+        const CAP_LIMIT = 500;
+        
+        // HUGE MAP FOR 3 CONTINENTS
+        const MAP_WIDTH = 4000;
+        const MAP_HEIGHT = 2000;
+        const MAX_AIR_RANGE = 1000; 
+        const MAX_AIR_RANGE_SQ = MAX_AIR_RANGE * MAX_AIR_RANGE;
+        const getDistSq = (a, b) => (a.cx - b.cx)**2 + (a.cy - b.cy)**2; 
+
+        const CONTINENTS = ['Indira', 'Varuna', 'Shreya'];
+
+        // TOP 13 AI GAMERS + USER
+        const BASE_PLAYERS = [
+            { id: 0, name: 'Neutral', color: '#cbd5e1', isAI: true, strat: 'none' },
+            { id: 1, name: 'Commander', color: '#3b82f6', isAI: false, strat: 'none' },
+            { id: 2, name: 'Faker', color: '#ef4444', isAI: true, strat: 'balanced' },
+            { id: 3, name: 'Shroud', color: '#10b981', isAI: true, strat: 'air_heavy' },
+            { id: 4, name: 'TenZ', color: '#eab308', isAI: true, strat: 'aggro' },
+            { id: 5, name: 'S1mple', color: '#8b5cf6', isAI: true, strat: 'defensive' },
+            { id: 6, name: 'Ninja', color: '#ec4899', isAI: true, strat: 'naval_heavy' },
+            { id: 7, name: 'Scump', color: '#06b6d4', isAI: true, strat: 'tech_rusher' },
+            { id: 8, name: 'ImperialHal', color: '#f97316', isAI: true, strat: 'balanced' },
+            { id: 9, name: 'Bugha', color: '#84cc16', isAI: true, strat: 'aggro' },
+            { id: 10, name: 'Karmine', color: '#f43f5e', isAI: true, strat: 'air_heavy' },
+            { id: 11, name: 'Mortal', color: '#14b8a6', isAI: true, strat: 'defensive' },
+            { id: 12, name: 'Scout', color: '#6366f1', isAI: true, strat: 'tech_rusher' },
+            { id: 13, name: 'Dynamo', color: '#d946ef', isAI: true, strat: 'balanced' },
+            { id: 14, name: 'Jonathan', color: '#0284c7', isAI: true, strat: 'naval_heavy' }
+        ];
+
+        const UPGRADE_COSTS = {
+            mine: (lvl) => lvl * 100, army: (lvl) => lvl * 100, shield: 1000,
+            air: (lvl) => lvl === 0 ? 2000 : 2000 + (lvl * 500),
+            naval: (lvl) => lvl === 0 ? 3000 : 3000 + (lvl * 500),
+            nuke: (lvl) => lvl === 0 ? 5000 : 5000 + (lvl * 5000), 
+            autoLauncherUnlock: 100000, missileLaunch: 2000, rd: (lvl) => 500 + (lvl * 100),
+            advArmy: (lvl) => 10000 * (lvl + 1), advAir: (lvl) => 15000 * (lvl + 1), advNaval: (lvl) => 20000 * (lvl + 1),
+            cannonDeploy: 5000, cannonUp: (lvl) => lvl * 30000, supporter: 50000,
+            nmcDeploy: 50000, nmcUp: (lvl) => lvl === 10 ? 1000000 : 50000 + (lvl * 50000), 
+            carrierDeploy: 90000, carrierUnlock: 20000000, carrierUp: (lvl) => 90000 * Math.pow(2, lvl),
+            ultimateFenceUnlock: 2000000, autoTech: (lvl) => lvl === 0 ? 500000 : (lvl === 1 ? 1000000 : 2000000),
+            orbital: 3000000, emp: 1000000, quantum: 500000, nano: 800000, stealth: 1500000, islandTesla: 1000000, islandAA: 2000000
+        };
+
+        function generateLightningPoints(x1, y1, x2, y2) {
+            const segments = 15; const points = [`${x1},${y1}`];
+            for (let i = 1; i < segments; i++) {
+                const px = x1 + (x2 - x1) * (i / segments) + (Math.random() * 80 - 40);
+                const py = y1 + (y2 - y1) * (i / segments) + (Math.random() * 60 - 30);
+                points.push(`${px},${py}`);
+            }
+            points.push(`${x2},${y2}`); return points.join(' ');
+        }
+
+        function generateMap() {
+            const padSettings = [
+                { name: 'Indira', cx: 1000, cy: 1000, count: 110, rX: 800, rY: 800 },
+                { name: 'Varuna', cx: 2500, cy: 600, count: 45, rX: 600, rY: 400 },
+                { name: 'Shreya', cx: 3000, cy: 1500, count: 79, rX: 700, rY: 600 }
+            ];
+
+            let initialPoints = [];
+            padSettings.forEach(pad => initialPoints.push({ x: pad.cx, y: pad.cy, type: 'island', continent: pad.name }));
+            padSettings.forEach(pad => {
+                for (let i = 0; i < pad.count; i++) {
+                    let angle = Math.random() * Math.PI * 2, u = Math.random() + Math.random();
+                    let r = u > 1 ? 2 - u : u; 
+                    initialPoints.push({ x: pad.cx + Math.cos(angle) * r * pad.rX, y: pad.cy + Math.sin(angle) * r * pad.rY, type: 'land', continent: pad.name });
+                }
+            });
+
+            for(let i=0; i<300; i++) initialPoints.push({ x: Math.random() * MAP_WIDTH, y: Math.random() * MAP_HEIGHT, type: 'water', continent: 'Ocean' });
+
+            let flatCoords = initialPoints.map(p => [p.x, p.y]);
+            const delaunay = d3.Delaunay.from(flatCoords);
+            const voronoi = delaunay.voronoi([50, 50, MAP_WIDTH-50, MAP_HEIGHT-50]);
+
+            let countries = []; let idCounter = 1;
+            for (let i = 0; i < initialPoints.length; i++) {
+                const poly = voronoi.cellPolygon(i); if (!poly) continue;
+                const pt = initialPoints[i]; const center = d3.polygonCentroid(poly);
+                const pad = padSettings.find(p => p.name === pt.continent);
+                
+                let isActuallyWater = pt.type === 'water';
+                if (!isActuallyWater && pad) {
+                    if (Math.pow((center[0]-pad.cx)/pad.rX, 2) + Math.pow((center[1]-pad.cy)/pad.rY, 2) > 1.2 && pt.type !== 'island') isActuallyWater = true;
+                }
+
+                if (isActuallyWater) { countries.push({ id: -i, path: "M" + poly.join("L") + "Z", isWater: true }); continue; }
+                
+                if (pt.type === 'island') {
+                    countries.push({
+                        id: idCounter++, path: "M" + poly.map(p => [center[0] + (p[0]-center[0])*0.5, center[1] + (p[1]-center[1])*0.5]).join("L") + "Z", cx: center[0], cy: center[1],
+                        neighbors: [], ownerId: 0, army: 1000, wall: 0, cannonLevel: 0, hasSupporter: false, originalBase: null, nmcLevel: 0, isWater: false, minefieldUntil: 0, isUltimateFenced: false, isEmpedUntil: 0, isAegis: false,
+                        isIsland: true, continent: pt.continent, teslaActive: false, teslaMode: 'active', teslaLoopTimer: 120, teslaSubTimer: 0, islandAATimer: 0, hasAutoRifle: false, autoRifleActive: false, autoRifleUptime: 0
+                    }); continue;
+                }
+
+                countries.push({
+                    id: idCounter++, path: "M" + poly.join("L") + "Z", cx: center[0], cy: center[1],
+                    neighbors: Array.from(delaunay.neighbors(i)), ownerId: 0, army: Math.floor(Math.random() * 10) + 5,
+                    wall: 0, cannonLevel: 0, hasSupporter: false, originalBase: null, nmcLevel: 0, nmcTimer: 20, isWater: false,
+                    minefieldUntil: 0, isUltimateFenced: false, isEmpedUntil: 0, isAegis: false, isIsland: false, continent: pt.continent, hasAutoRifle: false, autoRifleActive: false, autoRifleUptime: 0
+                });
+            }
+
+            countries.forEach(c => { if(!c.isWater) c.neighbors = countries.filter(n => !n.isWater && n.id !== c.id && Math.hypot(n.cx - c.cx, n.cy - c.cy) < 400).map(n => n.id); });
+
+            let indiraBases = countries.filter(c => !c.isWater && !c.isIsland && c.continent === 'Indira').sort(() => Math.random() - 0.5);
+            for (let i = 1; i <= 14; i++) {
+                if (indiraBases.length === 0) break;
+                const node = indiraBases.pop(); node.ownerId = i; node.army = 100;
+            }
+            return countries;
+        }
+
+        const ChatBox = ({ players, userColor }) => {
+            const [isOpen, setIsOpen] = React.useState(false);
+            const [messages, setMessages] = React.useState([]);
+            const [input, setInput] = React.useState('');
+            const [font, setFont] = React.useState('font-sans');
+            const [color, setColor] = React.useState('text-slate-800');
+            const messagesEndRef = React.useRef(null);
+
+            const aiChats = ["Island mera hoga!", "Indira continent par meri army sabse strong hai.", "Auto-Rifle base deploy karo bhai log.", "Ocean cross karne ke liye Adv Army level 5 chaiye mujhe.", "Red Lightning ne mere saare jets uda diye!", "Shreya continent bilkul khali hai."];
+
+            React.useEffect(() => {
+                const timer = setInterval(() => {
+                    if (Math.random() < 0.15) {
+                        const ai = players[Math.floor(Math.random() * (players.length - 2)) + 2];
+                        if (ai && ai.isAlive) addMessage(ai.name, ai.color, aiChats[Math.floor(Math.random() * aiChats.length)]);
+                    }
+                }, 4000);
+                return () => clearInterval(timer);
+            }, [players]);
+
+            React.useEffect(() => { if (messagesEndRef.current) messagesEndRef.current.scrollIntoView({ behavior: "smooth" }); }, [messages, isOpen]);
+
+            const addMessage = (sender, senderColor, text, textColor = 'text-slate-800', textFont = 'font-sans') => { setMessages(prev => [...prev, { id: Date.now() + Math.random(), sender, senderColor, text, textColor, textFont, pinned: false }]); };
+            const handleSend = (e) => { e.preventDefault(); if (!input.trim()) return; addMessage('Commander (You)', userColor, input, color, font); setInput(''); };
+            const togglePin = (id) => { setMessages(prev => prev.map(m => m.id === id ? { ...m, pinned: !m.pinned } : m)); };
+            const deleteMsg = (id) => { setMessages(prev => prev.filter(m => m.id !== id)); };
+
+            return (
+                <div className="absolute bottom-4 right-4 z-50 flex flex-col items-end pointer-events-auto">
+                    {isOpen && (
+                        <div className="panel-3d w-80 h-96 mb-4 flex flex-col overflow-hidden shadow-2xl transition-all">
+                            <div className="bg-slate-100 text-slate-800 p-3 font-black text-sm flex justify-between items-center border-b border-slate-200">
+                                <span className="flex items-center gap-2"><Icon name="MessageCircle" size={16} className="text-blue-600"/> GLOBAL CHAT</span>
+                                <button onClick={() => setIsOpen(false)} className="hover:text-red-500">&times;</button>
+                            </div>
+                            
+                            <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-white/50">
+                                {messages.sort((a,b) => b.pinned - a.pinned).map(m => (
+                                    <div key={m.id} className={`relative group p-2.5 rounded-xl text-sm border shadow-sm ${m.pinned ? 'bg-yellow-50 border-yellow-300' : 'bg-white border-slate-200'}`}>
+                                        <div className="flex justify-between items-start mb-1">
+                                            <span className="font-black text-xs flex items-center gap-1" style={{ color: m.senderColor }}>{m.pinned && <Icon name="Zap" size={10} className="text-yellow-500"/>} {m.sender}</span>
+                                            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+                                                <button onClick={() => togglePin(m.id)} className="text-slate-400 hover:text-yellow-600 text-[10px] font-bold">PIN</button>
+                                                <button onClick={() => deleteMsg(m.id)} className="text-slate-400 hover:text-red-600 text-[10px] font-bold">DEL</button>
+                                            </div>
+                                        </div>
+                                        <p className={`font-bold leading-tight ${m.textColor} ${m.textFont}`}>{m.text}</p>
+                                    </div>
+                                ))}
+                                <div ref={messagesEndRef} />
+                            </div>
+
+                            <form onSubmit={handleSend} className="p-2 bg-slate-50 border-t border-slate-200 flex flex-col gap-2">
+                                <div className="flex gap-2">
+                                    <select value={color} onChange={e=>setColor(e.target.value)} className="text-[10px] bg-white border border-slate-300 rounded px-1 font-bold outline-none text-slate-800"><option value="text-slate-800">Black</option><option value="text-red-600">Red</option><option value="text-blue-600">Blue</option><option value="text-green-600">Green</option></select>
+                                    <select value={font} onChange={e=>setFont(e.target.value)} className="text-[10px] bg-white border border-slate-300 rounded px-1 font-bold outline-none text-slate-800"><option value="font-sans">Sans</option><option value="font-serif">Serif</option><option value="font-mono">Mono</option></select>
+                                </div>
+                                <div className="flex gap-2">
+                                    <input type="text" value={input} onChange={e=>setInput(e.target.value)} placeholder="Type message..." className="flex-1 bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm font-bold text-slate-800 outline-none focus:border-blue-500 shadow-inner" />
+                                    <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded-lg font-black text-xs hover:bg-blue-500 transition shadow">SEND</button>
+                                </div>
+                            </form>
+                        </div>
+                    )}
+                    {!isOpen && <button onClick={() => setIsOpen(true)} className="panel-3d p-4 bg-blue-600 text-white hover:bg-blue-500 rounded-full shadow-[0_10px_20px_rgba(37,99,235,0.3)] flex items-center justify-center btn-3d border-blue-800"><Icon name="MessageCircle" size={24} /></button>}
+                </div>
+            );
+        };
+
+        const Lobby = ({ onStart }) => {
+            const colors = [
+                { hex: '#3b82f6', name: 'Commander Blue' },
+                { hex: '#10b981', name: 'Emerald Green' },
+                { hex: '#eab308', name: 'Golden Yellow' },
+                { hex: '#8b5cf6', name: 'Royal Purple' },
+                { hex: '#ef4444', name: 'Crimson Red' }
+            ];
+            const [selected, setSelected] = React.useState(colors[0]);
+
+            return (
+                <div className="flex flex-col items-center justify-center h-screen w-full bg-slate-900 text-white relative overflow-hidden">
+                    <div className="clouds"></div>
+                    <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
+                    <div className="z-10 text-center max-w-2xl bg-slate-800/90 backdrop-blur-xl p-10 rounded-[2rem] border border-slate-700 shadow-[0_30px_60px_rgba(0,0,0,0.5)]">
+                        <Icon name="Crown" size={70} className="mx-auto text-yellow-500 mb-6 drop-shadow-[0_10px_15px_rgba(234,179,8,0.4)]"/>
+                        <h1 className="text-5xl font-black mb-4 font-['Space_Grotesk'] tracking-tight">GLOBAL CONQUEST <span className="text-4xl text-blue-500 drop-shadow-md">4D</span></h1>
+                        <p className="text-slate-400 text-base mb-10 font-bold">14 Commanders. 3 Continents. Select your empire's color to begin.</p>
+                        
+                        <div className="flex gap-6 justify-center mb-10">
+                            {colors.map(c => (
+                                <div 
+                                    key={c.hex} onClick={() => setSelected(c)}
+                                    className={`w-16 h-16 rounded-2xl cursor-pointer transition-all transform btn-3d flex items-center justify-center ${selected.hex === c.hex ? 'ring-4 ring-slate-400 scale-110 shadow-xl' : 'opacity-80 hover:opacity-100 hover:scale-105 shadow-md'}`}
+                                    style={{ backgroundColor: c.hex, borderBottomColor: 'rgba(0,0,0,0.4)' }}
+                                >
+                                    {selected.hex === c.hex && <Icon name="Target" size={24} className="text-white opacity-80" />}
+                                </div>
+                            ))}
+                        </div>
+
+                        <button 
+                            onClick={() => { audioCtx.resume(); onStart(selected.hex); }}
+                            className="bg-blue-600 text-white font-black text-xl py-4 px-12 rounded-2xl shadow-[0_10px_20px_rgba(37,99,235,0.3)] btn-3d border-blue-800 hover:bg-blue-500 flex items-center gap-3 mx-auto"
+                        >
+                            <Icon name="Play" size={24}/> LAUNCH ASSAULT
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const svgRef = React.useRef(null);
+            const [gameStarted, setGameStarted] = React.useState(false);
+            const engine = React.useRef(null);
+
+            const [, setTick] = React.useState(0);
+            const [selectedWeapon, setSelectedWeapon] = React.useState(WEAPONS.ARMY);
+            const [showWeaponPanel, setShowWeaponPanel] = React.useState(true); 
+
+            const [showCommandCenter, setShowCommandCenter] = React.useState(false);
+            const [gameOver, setGameOver] = React.useState(false);
+            const [winner, setWinner] = React.useState(null);
+            const [shieldTimeLeft, setShieldTimeLeft] = React.useState(0);
+            const [gracePeriod, setGracePeriod] = React.useState(30);
+            const [soundOn, setSoundOn] = React.useState(true);
+            const [viewMode, setViewMode] = React.useState(false);
+            const [mapLocked, setMapLocked] = React.useState(false);
+            
+            const [showLeaderboard, setShowLeaderboard] = React.useState(true);
+            const [showActionLog, setShowActionLog] = React.useState(true);
+            const [showDetailedStats, setShowDetailedStats] = React.useState(false);
+            const [statTab, setStatTab] = React.useState('All'); 
+
+            const [transform, setTransform] = React.useState({ x: 0, y: 0, scale: 0.35 }); 
+            const isPanning = React.useRef(false);
+            const panStart = React.useRef({ x: 0, y: 0, panX: 0, panY: 0 });
+            const initialPinchDist = React.useRef(null);
+
+            React.useEffect(() => { soundEnabled = soundOn; }, [soundOn]);
+
+            const logEvent = (msg, type='info') => {
+                if(engine.current) {
+                    engine.current.actionLogs.unshift({ id: Math.random(), msg, type, time: Date.now() });
+                    if(engine.current.actionLogs.length > 20) engine.current.actionLogs.pop();
+                }
+            }
+
+            const initGame = (playerColor) => {
+                let players = JSON.parse(JSON.stringify(BASE_PLAYERS));
+                players[1].color = playerColor;
+                players.forEach((p, i) => { if(i > 1 && p.color === playerColor) p.color = '#64748b'; });
+
+                const state = {
+                    countries: generateMap(),
+                    players: players.map(p => ({
+                        ...p, gold: p.id === 1 ? 10000 : 2500, 
+                        tech: { mine: 1, army: 1, air: 0, naval: 0, nuke: 0, autoLauncherUnlocked: false, rd: 0, advArmy: 0, advAir: 0, advNaval: 0, nmc: 0, autoTech: 0, orbital: false, emp: false, stealth: false, nano: false, quantum: false, carrier1Unlocked: false, carrier2Unlocked: false, carrier3Unlocked: false, heliUnlocked: false, islandTeslaActive: false, islandAAActive: false },
+                        shieldActiveUntil: 0, fencesCount: 0, fenceTimer: 300, supportersCount: 0, commanderActive: true, isAlive: true
+                    })),
+                    carriers: [
+                        { id: 0, active: false, baseId: null, x: MAP_WIDTH/2, y: MAP_HEIGHT/2, timer: 30, missileTimer: 50, level: 0, launchQueue: [], lastLaunch: 0, lastMgFire: 0, lastAAFire: 0, type: 'original', unlocked: false },
+                        { id: 1, active: false, baseId: null, x: MAP_WIDTH/2, y: MAP_HEIGHT/2, timer: 30, missileTimer: 50, level: 0, launchQueue: [], lastLaunch: 0, lastMgFire: 0, lastAAFire: 0, type: 'nuke', unlocked: false },
+                        { id: 2, active: false, baseId: null, x: MAP_WIDTH/2, y: MAP_HEIGHT/2, timer: 30, missileTimer: 50, level: 0, launchQueue: [], lastLaunch: 0, lastMgFire: 0, lastAAFire: 0, type: 'plasma', unlocked: false },
+                        { id: 3, active: false, baseId: null, x: MAP_WIDTH/2, y: MAP_HEIGHT/2, timer: 30, missileTimer: 50, level: 0, launchQueue: [], lastLaunch: 0, lastMgFire: 0, lastAAFire: 0, type: 'nano', unlocked: false }
+                    ],
+                    helicopters: [], autoLauncher: { active: false, bases: [], timer: 120 },
+                    movements: [], popups: [], tracers: [], shockwaves: [], actionLogs: [],
+                    lastTime: Date.now(), startTime: Date.now(), lastReactRender: Date.now(), aiTickTimer: 0, supporterTickTimer: 0, dragSourceId: null, mouseX: 0, mouseY: 0,
+                    targetingMissile: false, targetingCannonDeploy: false, targetingFence: false, targetingNMC: false, targetingSupporter: false, targetingAutoLauncher: false, targetingOrbital: false, targetingEMP: false, targetingCarrierId: null, targetingAutoRifle: false, targetingDeployArmy: false
+                };
+                engine.current = state;
+                setTransform({ x: (window.innerWidth - MAP_WIDTH*0.35)/2, y: (window.innerHeight - MAP_HEIGHT*0.35)/2, scale: 0.35 });
+                setGameStarted(true); logEvent("War Initiated. 30s Peace Treaty active.", "info");
+            };
+
+            React.useEffect(() => {
+                if (!gameStarted) return;
+                let frameId;
+
+                const loop = () => {
+                    const state = engine.current;
+                    if (gameOver) return;
+
+                    const now = Date.now(); const rawDt = Math.min((now - state.lastTime) / 1000, 0.1); const dt = rawDt * 0.4; 
+                    state.lastTime = now; state.aiTickTimer += rawDt; state.supporterTickTimer += rawDt;
+                    if (state.countries.length === 0) return;
+
+                    const gp = 30 - Math.floor((now - state.startTime)/1000); setGracePeriod(gp > 0 ? gp : 0);
+                    const humanShield = state.players[1].shieldActiveUntil; setShieldTimeLeft(humanShield > now ? Math.ceil((humanShield - now) / 1000) : 0);
+
+                    const hasDeployedNMC_loop = state.countries.some(c => c.ownerId === 1 && c.nmcLevel > 0);
+                    if (hasDeployedNMC_loop && !state.carriers[0].unlocked) { state.carriers[0].unlocked = true; logEvent("Original Aircraft Carrier Unlocked!", "success"); }
+
+                    for(let i=0; i<state.countries.length; i++) state.countries[i].isAegis = false;
+                    const nanoCarrier = state.carriers.find(c => c.type === 'nano');
+                    if (nanoCarrier && nanoCarrier.active && nanoCarrier.baseId) { const b = state.countries.find(x => x.id === nanoCarrier.baseId); if (b) b.isAegis = true; }
+
+                    // Island Logic
+                    state.countries.filter(c => c.isIsland).forEach(island => {
+                        if (island.teslaActive) {
+                            island.teslaLoopTimer -= rawDt;
+                            if (island.teslaMode === 'active') {
+                                island.teslaSubTimer = (island.teslaSubTimer || 0) - rawDt;
+                                if (island.teslaSubTimer <= 0) {
+                                    island.teslaSubTimer = 1.0; 
+                                    const teslaRadiusSq = (MAX_AIR_RANGE * 0.7) * (MAX_AIR_RANGE * 0.7);
+                                    const enemies = state.countries.filter(c => c.ownerId !== island.ownerId && !c.isWater && getDistSq(island, c) <= teslaRadiusSq).sort((a,b)=>b.army-a.army).slice(0, 3);
+                                    if(enemies.length > 0) {
+                                        playSound('lightning');
+                                        enemies.forEach(e => {
+                                            e.army -= 120; state.tracers.push({ x1: island.cx, y1: island.cy, x2: e.cx, y2: e.cy, life: 0.6, isWhiteLightning: true });
+                                            if (e.army <= 0) { captureBase(state, e, 0); e.army = 0; } 
+                                            let chainTargets = state.countries.filter(x => x.ownerId !== island.ownerId && x.id !== e.id && getDistSq(e, x) <= 60000 && !x.isWater).slice(0, 2);
+                                            chainTargets.forEach((chainTgt, idx) => {
+                                                chainTgt.army -= 30; state.tracers.push({ x1: e.cx, y1: e.cy, x2: chainTgt.cx, y2: chainTgt.cy, life: 0.4, isWhiteLightning: true });
+                                                if (chainTgt.army <= 0) { captureBase(state, chainTgt, 0); chainTgt.army = 0; } 
+                                            });
+                                        });
+                                    }
+                                }
+                                if (island.teslaLoopTimer <= 0) { island.teslaMode = 'cooldown'; island.teslaLoopTimer = 60; if(island.ownerId === 1) logEvent(`${island.continent} Tesla City cooling down for 60s.`, "warning"); }
+                            } else if (island.teslaMode === 'cooldown') {
+                                if (island.teslaLoopTimer <= 0) { island.teslaMode = 'active'; island.teslaLoopTimer = 120; if(island.ownerId === 1) logEvent(`${island.continent} Tesla City active for 120s!`, "info"); }
+                            }
+                        }
+
+                        if (island.ownerId === 1 && state.players[1].tech.islandAAActive) {
+                            island.islandAATimer = (island.islandAATimer || 0) - rawDt;
+                            if (island.islandAATimer <= 0) {
+                                island.islandAATimer = 0.5; 
+                                const redAARadiusSq = (MAX_AIR_RANGE * 0.55) * (MAX_AIR_RANGE * 0.55);
+                                let aerialTargets = state.movements.filter(m => !m.dead && m.ownerId !== 1 && (m.type === WEAPONS.AIR || m.type === WEAPONS.NAVAL || ['c2_jet', 'anbc_jet', 'c3_swarm', 'orig_jet'].includes(m.type)));
+                                aerialTargets = aerialTargets.filter(tgt => {
+                                    const tgtBase = state.countries.find(cx=>cx.id===tgt.toId); if(!tgtBase) return false;
+                                    const curX = tgt.startX + (tgtBase.cx - tgt.startX) * tgt.progress; const curY = tgt.startY + (tgtBase.cy - tgt.startY) * tgt.progress;
+                                    return Math.pow(curX - island.cx, 2) + Math.pow(curY - island.cy, 2) <= redAARadiusSq;
+                                });
+                                if (aerialTargets.length > 0) {
+                                    aerialTargets.slice(0, 1).forEach(tgt => {
+                                        tgt.amount -= 300; 
+                                        const tgtBase = state.countries.find(cx=>cx.id===tgt.toId);
+                                        const curX = tgt.startX + (tgtBase.cx - tgt.startX) * tgt.progress; const curY = tgt.startY + (tgtBase.cy - tgt.startY) * tgt.progress;
+                                        state.tracers.push({ x1: island.cx, y1: island.cy, x2: curX, y2: curY, life: 0.5, isRedLightning: true });
+                                        playSound('redlightning');
+                                        if (tgt.amount <= 0) tgt.dead = true; 
+                                    });
+                                }
+                            }
+                        }
+                    });
+
+                    // Auto Rifle Logic
+                    state.countries.filter(c => c.hasAutoRifle && c.ownerId === 1 && c.autoRifleActive).forEach(c => {
+                        c.autoRifleUptime += rawDt; let costPerSec = c.autoRifleUptime > 60 ? 200000 : 100000; let costPerTick = costPerSec * rawDt;
+                        if (state.players[1].gold >= costPerTick) {
+                            state.players[1].gold -= costPerTick; c.autoRifleSubTimer = (c.autoRifleSubTimer || 0) - rawDt;
+                            if (c.autoRifleSubTimer <= 0) {
+                                c.autoRifleSubTimer = 0.2; let tgt = state.countries.find(x => x.ownerId !== 1 && !x.isWater);
+                                if (tgt) {
+                                    tgt.army -= 20; if(tgt.army <= 0) captureBase(state, tgt, 1);
+                                    state.tracers.push({ x1: c.cx, y1: c.cy, x2: tgt.cx, y2: tgt.cy, life: 0.1, isAutoRifle: true });
+                                    if (Math.random() < 0.2) playSound('cannon');
+                                }
+                            }
+                        } else { c.autoRifleActive = false; logEvent("Auto-Rifle disabled due to insufficient funds!", "danger"); }
+                    });
+
+                    // Helicopter Logic
+                    if (state.players[1].tech.heliUnlocked) {
+                        state.helicopters.forEach(h => {
+                            if (h.phase === 'reloading') {
+                                h.timer -= rawDt;
+                                if (h.timer <= 0) {
+                                    const enemies = state.countries.filter(c => c.ownerId !== 1 && !c.isWater).sort((a,b)=>b.army-a.army);
+                                    if(enemies.length > 0) {
+                                        h.targetId = enemies[Math.floor(Math.random()*Math.min(3, enemies.length))].id; h.phase = 'outbound'; h.progress = 0;
+                                        const car = state.carriers.find(c=>c.id===h.carrierId); if(car) { h.x = car.x; h.y = car.y; h.startX = car.x; h.startY = car.y; }
+                                    }
+                                }
+                            } else if (h.phase === 'outbound') {
+                                h.progress += dt; const tgt = state.countries.find(c=>c.id===h.targetId);
+                                if(tgt) { h.x = h.startX + (tgt.cx - h.startX) * h.progress; h.y = h.startY + (tgt.cy - h.startY) * h.progress; h.angle = Math.atan2(tgt.cy - h.startY, tgt.cx - h.startX); if (h.progress >= 1) { h.phase = 'attacking'; h.timer = 300; h.orbitAngle = 0; } } else { h.phase = 'reloading'; h.timer = 5; }
+                            } else if (h.phase === 'attacking') {
+                                h.timer -= rawDt; const tgt = state.countries.find(c=>c.id===h.targetId);
+                                if(tgt && tgt.ownerId !== 1) {
+                                    h.orbitAngle += 2 * rawDt; h.x = tgt.cx + Math.cos(h.orbitAngle) * 40; h.y = tgt.cy + Math.sin(h.orbitAngle) * 40; h.angle = h.orbitAngle + Math.PI/2;
+                                    tgt.army -= 10 * rawDt; 
+                                    if (Math.random() < 0.1) state.tracers.push({ x1: h.x, y1: h.y, x2: tgt.cx + (Math.random()*20-10), y2: tgt.cy + (Math.random()*20-10), life: 0.1, isMg: true, color: '#ef4444' });
+                                    if (tgt.army <= 0) { captureBase(state, tgt, 0); tgt.army = 0; playSound('capture'); } 
+                                    if (h.timer <= 0) { h.phase = 'returning'; h.progress = 0; h.startX = h.x; h.startY = h.y; }
+                                } else { h.phase = 'returning'; h.progress = 0; h.startX = h.x; h.startY = h.y; }
+                            } else if (h.phase === 'returning') {
+                                h.progress += dt; const car = state.carriers.find(c=>c.id===h.carrierId);
+                                if(car && car.active) { h.x = h.startX + (car.x - h.startX) * h.progress; h.y = h.startY + (car.y - h.startY) * h.progress; h.angle = Math.atan2(car.y - h.startY, car.x - h.startX); if (h.progress >= 1) { h.phase = 'reloading'; h.timer = 120; } } else { h.phase = 'reloading'; h.timer = 120; }
+                            }
+                        });
+                    }
+
+                    // Loop state.players, country stats, auto cannon, nmc firing
+                    state.players.forEach(p => {
+                        if (p.id === 0 || !p.isAlive) return;
+                        let myCountriesCount = state.countries.filter(c=>c.ownerId === p.id && !c.isWater).length;
+                        if (myCountriesCount === 0 && p.isAlive) { p.isAlive = false; if (p.id !== 1) logEvent(`${p.name} ELIMINATED!`, 'danger'); return; }
+                        
+                        let mineMultiplier = p.tech.mine <= 10 ? 1 + (p.tech.mine - 1) * 0.10 : (1 + 9 * 0.10) * Math.pow(1.50, p.tech.mine - 10);
+                        const ownsIsland = state.countries.some(c => c.isIsland && c.ownerId === p.id);
+                        p.gold += (myCountriesCount * mineMultiplier * 10) * rawDt * (1 + p.tech.advArmy * 0.5) * (ownsIsland ? 2 : 1); 
+                        if (p.fencesCount > 0) { p.fenceTimer -= rawDt; if (p.fenceTimer <= 0) { p.gold -= (p.fencesCount * 500000); p.fenceTimer = 300; } }
+                        
+                        const armyBoost = (1.5 * p.tech.army * (1 + p.tech.advArmy * 0.5)) * dt * 2 * (ownsIsland ? 2 : 1);
+                        for(let i=0; i<state.countries.length; i++) {
+                            let c = state.countries[i]; if(c.ownerId !== p.id || c.isWater) continue;
+                            let cap = c.cannonLevel > 0 ? Math.max(CAP_LIMIT, c.cannonLevel * 3000) : CAP_LIMIT;
+                            if (c.nmcLevel > 0) cap = Math.max(cap, 10000); if (c.isUltimateFenced) cap = 100000; if (c.isIsland) cap = 10000;
+                            if (c.army < cap) { let g = armyBoost; if (c.nmcLevel > 0 && c.army < 10000) g += 800 * dt; if (c.isUltimateFenced && c.army < 100000) g += 2000 * dt; if (c.isAegis) g *= 2; c.army += g; if (c.army > cap) c.army = cap; }
+                            const maxWall = p.tech.rd * 300 * (p.tech.nano ? 2 : 1); if (c.wall < maxWall) c.wall = Math.min(c.wall + 50 * dt * (p.tech.nano ? 5 : 1), maxWall);
+
+                            if (c.isEmpedUntil < now) {
+                                if (c.cannonLevel > 0 && c.army >= (c.hasSupporter ? 1000 : 3000)) {
+                                    let minD = Infinity, bestTarget = null;
+                                    state.countries.forEach(x => { if(x.ownerId !== c.ownerId && !x.isWater) { let dSq = getDistSq(c, x); if(dSq <= MAX_AIR_RANGE_SQ && dSq < minD) { minD = dSq; bestTarget = x; } } });
+                                    if (bestTarget) {
+                                        const tPlayer = state.players.find(x => x.id === bestTarget.ownerId);
+                                        if (!(tPlayer && tPlayer.shieldActiveUntil > now) && !(gp > 0 && bestTarget.ownerId !== 0) && !bestTarget.isUltimateFenced) {
+                                            bestTarget.army -= (c.cannonLevel * 50 * (c.hasSupporter ? 2 : 1)) * dt; 
+                                            if (Math.random() < 0.15) { playSound('cannon'); state.tracers.push({ x1: c.cx, y1: c.cy, x2: bestTarget.cx + (Math.random()*40-20), y2: bestTarget.cy + (Math.random()*40-20), life: 0.2 }); }
+                                            if (bestTarget.army <= 0) { playSound('capture'); captureBase(state, bestTarget, c.ownerId); }
+                                        }
+                                    }
+                                }
+                                if (c.nmcLevel > 0 && c.army >= 10000) {
+                                    c.nmcTimer -= rawDt;
+                                    if (c.nmcTimer <= 0) {
+                                        c.nmcTimer = c.nmcLevel >= 11 ? 5 : (20 - (c.nmcLevel - 1)); 
+                                        let possibleTargets = state.countries.filter(x => x.ownerId !== c.ownerId && !x.isWater && !x.isUltimateFenced && !x.isAegis);
+                                        let anyEnemy = possibleTargets.find(x => x.isIsland && x.continent === c.continent) || possibleTargets.sort((a,b) => b.army - a.army)[0];
+                                        if (anyEnemy) {
+                                            const tPlayer = state.players.find(x => x.id === anyEnemy.ownerId);
+                                            if (!(tPlayer && tPlayer.shieldActiveUntil > now) && !(gp > 0 && anyEnemy.ownerId !== 0)) {
+                                                anyEnemy.army -= 1000 + ((c.nmcLevel-1)*200); 
+                                                playSound('laser'); state.tracers.push({ x1: c.cx, y1: c.cy, x2: anyEnemy.cx, y2: anyEnemy.cy, life: 0.8, isNmcLaser: true });
+                                                if (anyEnemy.army <= 0) { playSound('capture'); captureBase(state, anyEnemy, c.ownerId); }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+
+                    state.countries.forEach(c => { if(!c.isWater && c.ownerId === 0 && c.army < 50) c.army += 0.1 * rawDt; if(!c.isWater && c.minefieldUntil > now && c.ownerId !== 1) c.army = 0; });
+
+                    if (state.autoLauncher.active) {
+                        state.autoLauncher.timer -= rawDt;
+                        if (state.autoLauncher.timer <= 0) {
+                            state.autoLauncher.timer = 120; const powerfulEnemy = state.countries.filter(c => c.ownerId !== 1 && !c.isWater && !c.isUltimateFenced && !c.isAegis).sort((a,b) => b.army - a.army)[0];
+                            if (powerfulEnemy) { playSound('nuke'); state.shockwaves.push({ x: powerfulEnemy.cx, y: powerfulEnemy.cy, life: 2.0 }); powerfulEnemy.army = 0; captureBase(state, powerfulEnemy, 0); state.popups.push({ x: powerfulEnemy.cx, y: powerfulEnemy.cy, text: "TRINITY NUKE!", color: '#ef4444', life: 3 }); logEvent("TRINITY NUKE LAUNCHED!", "warning"); }
+                        }
+                    }
+
+                    if (state.supporterTickTimer >= 1.0) {
+                        state.supporterTickTimer = 0;
+                        state.countries.filter(c => c.cannonLevel > 0 && c.hasSupporter).forEach(c => {
+                            let minDistToEnemy = Infinity;
+                            state.countries.forEach(e => { if(e.ownerId !== c.ownerId && !e.isWater) { let d = getDistSq(c, e); if(d < minDistToEnemy) minDistToEnemy = d; } });
+                            if(minDistToEnemy === Infinity) return;
+                            let bestNeighbor = null; let bestDist = minDistToEnemy;
+                            c.neighbors.forEach(nid => {
+                                let n = state.countries.find(x => x.id === nid);
+                                if(n && n.ownerId === c.ownerId && n.army >= 400 && !n.isWater && n.cannonLevel === 0) {
+                                    let dist = Infinity; state.countries.forEach(e => { if(e.ownerId !== c.ownerId && !e.isWater) { let d = getDistSq(n, e); if(d < dist) dist = d; } });
+                                    if (dist < bestDist - 2500) { bestDist = dist; bestNeighbor = n; } 
+                                }
+                            });
+                            if (bestNeighbor) { bestNeighbor.cannonLevel = c.cannonLevel; bestNeighbor.hasSupporter = true; bestNeighbor.originalBase = c.originalBase || c.id; c.cannonLevel = 0; c.hasSupporter = false; c.originalBase = null; }
+                        });
+                    }
+
+                    state.carriers.forEach((c, idx) => {
+                        if (c.active) {
+                            c.x = MAP_WIDTH/2 + Math.cos(now/5000 + idx*2) * (200 + idx*50); c.y = MAP_HEIGHT/2 + Math.sin(now/5000 + idx*2) * (150 + idx*40);
+                            const tetherBase = state.countries.find(x => x.id === c.baseId);
+                            if (!tetherBase || tetherBase.ownerId !== 1) { c.active = false; c.level = 0; c.launchQueue = []; state.popups.push({ x: c.x, y: c.y, text: "CARRIER DESTROYED!", color: '#ef4444', life: 3 }); playSound('nuke'); logEvent(`Carrier was destroyed!`, "danger"); } 
+                            else {
+                                if (c.level >= 2 && now - c.lastAAFire > 100) { 
+                                    c.lastAAFire = now;
+                                    let aerialTargets = state.movements.filter(m => !m.dead && m.ownerId !== 1 && (m.type === WEAPONS.AIR || m.type === WEAPONS.NAVAL || ['c2_jet', 'anbc_jet', 'c3_swarm', 'orig_jet'].includes(m.type)));
+                                    if (aerialTargets.length > 0) {
+                                        let tgt = aerialTargets[0]; tgt.amount -= 2; 
+                                        const tgtBase = state.countries.find(cx=>cx.id===tgt.toId);
+                                        if (tgtBase) { state.tracers.push({ x1: c.x, y1: c.y, x2: tgt.startX + (tgtBase.cx - tgt.startX) * tgt.progress, y2: tgt.startY + (tgtBase.cy - tgt.startY) * tgt.progress, life: 0.1, isCarrierAA: true }); if (Math.random() < 0.1) playSound('laser'); }
+                                        if (tgt.amount <= 0) tgt.dead = true;
+                                    }
+                                }
+
+                                if (now - c.lastMgFire > 1000) {
+                                    c.lastMgFire = now;
+                                    let planes = state.movements.filter(m => !m.dead && (m.type === WEAPONS.AIR || m.type === WEAPONS.NAVAL || ['c2_jet', 'orig_jet'].includes(m.type)) && m.ownerId !== 1 && m.startX !== undefined);
+                                    let bases = state.countries.filter(x => x.ownerId !== 1 && !x.isWater && !x.isUltimateFenced && !x.isAegis && getDistSq(x, c) <= (MAX_AIR_RANGE_SQ * 0.25)); 
+                                    let targetedAny = false;
+                                    let planeTgt = planes.find(p => { const po = state.players.find(px=>px.id===p.ownerId); if(po && po.tech.stealth) return false; return Math.hypot(p.startX + (state.countries.find(cx=>cx.id===p.toId).cx - p.startX) * p.progress - c.x, p.startY + (state.countries.find(cx=>cx.id===p.toId).cy - p.startY) * p.progress - c.y) <= (MAX_AIR_RANGE / 2); });
+                                    if(planeTgt) {
+                                        planeTgt.amount -= 50; 
+                                        state.tracers.push({ x1: c.x, y1: c.y, x2: planeTgt.startX + (state.countries.find(cx=>cx.id===planeTgt.toId).cx - planeTgt.startX) * planeTgt.progress, y2: planeTgt.startY + (state.countries.find(cx=>cx.id===planeTgt.toId).cy - planeTgt.startY) * planeTgt.progress, life: 0.1, isMg: true, color: '#fde047' });
+                                        targetedAny = true; if (planeTgt.amount <= 0) planeTgt.dead = true;
+                                    } else if(bases.length > 0) {
+                                        let bTgt = bases[0]; bTgt.army -= 50; state.tracers.push({ x1: c.x, y1: c.y, x2: bTgt.cx, y2: bTgt.cy, life: 0.1, isMg: true, color: '#fde047' });
+                                        if (bTgt.army <= 0) captureBase(state, bTgt, 1); targetedAny = true;
+                                    }
+                                    if(targetedAny) playSound('cannon');
+                                }
+
+                                c.timer -= rawDt;
+                                if (c.timer <= 0) {
+                                    c.timer = 30; const targets = state.countries.filter(x => x.ownerId !== 1 && !x.isWater && !x.isUltimateFenced && !x.isAegis).sort((a,b) => b.army - a.army).slice(0, c.level);
+                                    targets.forEach(t => { if(c.type === 'nano') { c.launchQueue.push({ targetId: t.id }, { targetId: t.id }, { targetId: t.id }); } else { c.launchQueue.push({ targetId: t.id }); } });
+                                }
+
+                                if (c.launchQueue.length > 0 && now - c.lastLaunch > (c.type === 'nano' ? 150 : 500)) {
+                                    c.lastLaunch = now; const task = c.launchQueue.shift();
+                                    state.movements.push({ id: Math.random().toString(36), fromId: c.baseId, toId: task.targetId, ownerId: 1, amount: c.type === 'original' ? (50 * c.level) : 0, type: c.type === 'plasma' ? 'c2_jet' : (c.type === 'nano' ? 'c3_swarm' : (c.type === 'original' ? 'orig_jet' : 'anbc_jet')), phase: 'outbound', progress: 0, duration: c.type === 'nano' ? 0.8 : 1.5, startX: c.x, startY: c.y, carrierType: c.type, dead: false });
+                                    playSound('airforce');
+                                }
+
+                                c.missileTimer -= rawDt;
+                                if (c.missileTimer <= 0) {
+                                    c.missileTimer = 50; const farthestTargets = state.countries.filter(x => x.ownerId !== 1 && !x.isWater && !x.isUltimateFenced && !x.isAegis).sort((a,b) => getDistSq(b, c) - getDistSq(a, c)).slice(0, 5);
+                                    if(farthestTargets.length > 0) playSound('ballistic');
+                                    farthestTargets.forEach(t => {
+                                        state.movements.push({ id: Math.random().toString(36), fromId: c.baseId, toId: t.id, ownerId: 1, amount: 300, type: c.type === 'plasma' ? 'c2_emp' : (c.type === 'nano' ? 'c3_nano' : (c.type === 'original' ? 'orig_missile' : 'anbc_ballistic')), progress: 0, duration: 1.5, startX: c.x, startY: c.y, dead: false });
+                                    });
+                                }
+                            }
+                        }
+                    });
+
+                    for (let i = state.movements.length - 1; i >= 0; i--) {
+                        const m = state.movements[i]; if (m.dead) { state.movements.splice(i, 1); continue; } 
+                        m.progress += dt / m.duration; 
+                        
+                        if (['anbc_jet', 'c2_jet', 'c3_swarm', 'orig_jet'].includes(m.type)) {
+                            if (m.phase === 'outbound' && m.progress >= 1) {
+                                const target = state.countries.find(c => c.id === m.toId);
+                                if (target && target.ownerId !== 1 && !target.isUltimateFenced && !target.isAegis) {
+                                    if (m.type === 'c2_jet') { 
+                                        playSound('orbital'); state.tracers.push({ x1: target.cx, y1: target.cy - 1000, x2: target.cx, y2: target.cy, life: 1.5, isOrbital: true });
+                                        setTimeout(() => { if(engine.current) { captureBase(engine.current, target, 0); target.army = 0; engine.current.countries.forEach(x => { if(getDistSq(x, target) <= 200*200 && !x.isWater) x.army *= 0.5; }); engine.current.popups.push({ x: target.cx, y: target.cy, text: "ION STRIKE!", color: '#0ea5e9', life: 3 }); logEvent("Orbital Strike Deployed!", "warning"); } }, 500);
+                                    } else if (m.type === 'orig_jet') { 
+                                        playSound('nuke'); state.shockwaves.push({ x: target.cx, y: target.cy, life: 1.0 }); captureBase(state, target, 0); target.army = 0; state.popups.push({ x: target.cx, y: target.cy, text: "ZEROED!", color: '#ef4444', life: 1.5 });
+                                    } else { 
+                                        playSound('nuke'); state.shockwaves.push({ x: target.cx, y: target.cy, life: 1.5 }); captureBase(state, target, 0); target.army = 0; target.minefieldUntil = now + 5000; state.popups.push({ x: target.cx, y: target.cy, text: "TOXIC NUKE!", color: '#22c55e', life: 2 });
+                                    }
+                                }
+                                m.phase = 'returning'; m.progress = 0; m.startX = target ? target.cx : m.startX; m.startY = target ? target.cy : m.startY;
+                            } else if (m.phase === 'returning' && m.progress >= 1) { state.movements.splice(i, 1); }
+                        } else if (['anbc_ballistic', 'c2_emp', 'c3_nano', 'orig_missile'].includes(m.type)) {
+                            if (m.progress >= 1) {
+                                const target = state.countries.find(c => c.id === m.toId);
+                                if (target && target.ownerId !== 1 && !target.isUltimateFenced && !target.isAegis) {
+                                    if (m.type === 'c2_emp') { playSound('emp'); state.shockwaves.push({ x: target.cx, y: target.cy, life: 1.0, isEmp: true }); target.isEmpedUntil = now + 15000; state.popups.push({ x: target.cx, y: target.cy, text: "EMP DISABLED", color: '#38bdf8', life: 1.5 }); } 
+                                    else { playSound('nuke'); state.shockwaves.push({ x: target.cx, y: target.cy, life: 1.0 }); target.army -= m.amount; if(target.army <= 0) { captureBase(state, target, 0); target.army = 0; } state.popups.push({ x: target.cx, y: target.cy, text: "-300 BALLISTIC", color: '#ea580c', life: 1.5 }); }
+                                }
+                                state.movements.splice(i, 1);
+                            }
+                        } else {
+                            if (m.progress >= 1) { resolveCombat(state, m, now, gp); state.movements.splice(i, 1); }
+                        }
+                    }
+
+                    for (let i = state.popups.length - 1; i >= 0; i--) { state.popups[i].life -= rawDt; if (state.popups[i].life <= 0) state.popups.splice(i, 1); }
+                    for (let i = state.shockwaves.length - 1; i >= 0; i--) { state.shockwaves[i].life -= rawDt; if (state.shockwaves[i].life <= 0) state.shockwaves.splice(i, 1); }
+                    for (let i = state.tracers.length - 1; i >= 0; i--) { state.tracers[i].life -= rawDt; if (state.tracers[i].life <= 0) state.tracers.splice(i, 1); }
+
+                    if (state.aiTickTimer >= 0.25) { processAILogic(state, dt * 2.5, now, gp); state.aiTickTimer = 0; }
+
+                    let userAlive = false, aiAlive = false, totalLandLocal = 0, userLandLocal = 0;
+                    for(let i=0; i<state.countries.length; i++) { if(!state.countries[i].isWater) { totalLandLocal++; if(state.countries[i].ownerId === 1) { userAlive = true; userLandLocal++; } else if(state.countries[i].ownerId !== 0) aiAlive = true; } }
+                    if (!userAlive) { setGameOver(true); setWinner('AI'); } else if (userLandLocal === totalLandLocal) { setGameOver(true); setWinner('User'); }
+
+                    if (now - state.lastReactRender > 35) { setTick(t => t + 1); state.lastReactRender = now; }
+                    frameId = requestAnimationFrame(loop);
+                };
+                frameId = requestAnimationFrame(loop);
+                return () => cancelAnimationFrame(frameId);
+            }, [gameStarted, gameOver]);
+
+            const captureBase = (state, target, newOwnerId) => {
+                if (target.isIsland) { target.teslaActive = false; target.teslaLoopTimer = 120; target.teslaMode = 'active'; target.islandAATimer = 0; if(target.ownerId === 1) { state.players[1].tech.islandTeslaActive = false; state.players[1].tech.islandAAActive = false; } }
+                if (target.cannonLevel > 0 && target.hasSupporter) { const orig = state.countries.find(x => x.id === target.originalBase); if (orig && orig.ownerId === target.ownerId) { orig.cannonLevel = target.cannonLevel; orig.hasSupporter = false; state.popups.push({x: orig.cx, y: orig.cy, text: "CANNON EVACUATED", color: '#f59e0b', life: 2}); } }
+                if (state.autoLauncher.bases.includes(target.id)) { state.autoLauncher.bases = state.autoLauncher.bases.filter(id => id !== target.id); state.autoLauncher.active = false; state.popups.push({ x: target.cx, y: target.cy, text: "AUTO LAUNCHER BROKEN!", color: '#ef4444', life: 2 }); }
+                if (newOwnerId === 1) { const p = state.players.find(x=>x.id===target.ownerId); if (p && p.id !== 0) logEvent(`Commander captured ${p.name}'s Base!`, 'success'); } else if (target.ownerId === 1) { const p = state.players.find(x=>x.id===newOwnerId); logEvent(`${p ? p.name : 'Neutral'} captured your Base!`, 'danger'); }
+                target.ownerId = newOwnerId; target.army = target.isIsland ? 1000 : (newOwnerId === 0 ? 0 : 10); target.cannonLevel = 0; target.hasSupporter = false; target.originalBase = null; target.wall = 0; target.nmcLevel = 0; target.isUltimateFenced = false; target.isEmpedUntil = 0; target.isAegis = false; target.hasAutoRifle = false; target.autoRifleActive = false; 
+            };
+
+            const resolveCombat = (state, m, now, gp) => {
+                const target = state.countries.find(c => c.id === m.toId); const sourcePlayer = state.players.find(p => p.id === m.ownerId); const targetPlayer = state.players.find(p => p.id === target.ownerId);
+                if (!target || !sourcePlayer) return;
+                if (target.ownerId === m.ownerId) { target.army += m.amount; state.popups.push({ x: target.cx, y: target.cy - 20, text: `+${Math.floor(m.amount)}`, color: '#3b82f6', life: 1 }); } 
+                else {
+                    if (target.isUltimateFenced) { playSound('error'); state.popups.push({ x: target.cx, y: target.cy - 20, text: "ULTIMATE FENCE BLOCK!", color: '#eab308', life: 1.5 }); return; }
+                    if (targetPlayer && targetPlayer.shieldActiveUntil > now) { playSound('error'); state.popups.push({ x: target.cx, y: target.cy - 20, text: "SHIELD BLOCKED!", color: '#0ea5e9', life: 1.5 }); return; }
+                    if (gp > 0 && target.ownerId !== 0) { playSound('error'); state.popups.push({ x: target.cx, y: target.cy - 20, text: "PEACE TREATY!", color: '#f59e0b', life: 1.5 }); return; }
+                    if (target.minefieldUntil > now && m.ownerId !== 1) { playSound('error'); state.popups.push({ x: target.cx, y: target.cy, text: "VAPORIZED IN MINEFIELD", color: '#22c55e', life: 1.5 }); return; }
+                    if (target.isIsland && m.type === WEAPONS.ARMY) { playSound('error'); state.popups.push({ x: target.cx, y: target.cy - 20, text: "ARMY CANNOT REACH ISLAND!", color: '#94a3b8', life: 1.5 }); return; }
+                    if (target.isIsland && m.type === WEAPONS.NAVAL) { playSound('error'); state.popups.push({ x: target.cx, y: target.cy - 20, text: "ISLAND IMMUNE TO NAVAL!", color: '#94a3b8', life: 1.5 }); return; }
+                    playSound(m.type === WEAPONS.AIR ? 'airforce' : (m.type === WEAPONS.NAVAL ? 'naval' : 'army'));
+                    let attackPower = m.amount;
+                    if (m.type === WEAPONS.AIR) attackPower *= 1.2 * (1 + sourcePlayer.tech.advAir * 0.5) * (sourcePlayer.tech.stealth ? 1.5 : 1);
+                    if (m.type === WEAPONS.NAVAL) attackPower *= 1.5 * (1 + sourcePlayer.tech.advNaval * 0.5);
+                    let remDamage = attackPower;
+                    if (target.wall > 0) { let wallDmg = remDamage * (m.type === WEAPONS.AIR && sourcePlayer.tech.stealth ? 2 : 1); if (wallDmg > target.wall) { remDamage -= (target.wall / (m.type === WEAPONS.AIR && sourcePlayer.tech.stealth ? 2 : 1)); target.wall = 0; } else { target.wall -= wallDmg; remDamage = 0; } }
+                    target.army -= remDamage; state.popups.push({ x: target.cx + 20, y: target.cy, text: `-${Math.floor(attackPower)}`, color: '#ef4444', life: 1 });
+                    if (target.army < 0) { playSound('capture'); captureBase(state, target, m.ownerId); target.army = Math.abs(target.army) / (m.type === WEAPONS.NAVAL ? 1.5 : (m.type === WEAPONS.AIR ? 1.2 : 1)); state.popups.push({ x: target.cx, y: target.cy, text: `CAPTURED`, color: '#f59e0b', life: 1.5 }); }
+                }
+            };
+
+            const processAILogic = (state, dt, now, gp) => {
+                const aiPlayers = state.players.filter(p => p.isAI && p.id !== 0 && p.isAlive);
+                aiPlayers.forEach(ai => {
+                    let oldNuke = ai.tech.nuke;
+                    if (ai.tech.mine < 30 && ai.gold >= UPGRADE_COSTS.mine(ai.tech.mine)) { ai.gold -= UPGRADE_COSTS.mine(ai.tech.mine); ai.tech.mine++; }
+                    else if (ai.tech.army < 10 && ai.gold >= UPGRADE_COSTS.army(ai.tech.army)) { ai.gold -= UPGRADE_COSTS.army(ai.tech.army); ai.tech.army++; }
+                    else if (ai.tech.army >= 10 && ai.tech.advArmy < 5 && ai.gold >= UPGRADE_COSTS.advArmy(ai.tech.advArmy)) { ai.gold -= UPGRADE_COSTS.advArmy(ai.tech.advArmy); ai.tech.advArmy++; }
+                    else if (ai.tech.air < 10 && ai.gold >= UPGRADE_COSTS.air(ai.tech.air)) { ai.gold -= UPGRADE_COSTS.air(ai.tech.air); ai.tech.air++; }
+                    else if (ai.tech.naval < 10 && ai.gold >= UPGRADE_COSTS.naval(ai.tech.naval)) { ai.gold -= UPGRADE_COSTS.naval(ai.tech.naval); ai.tech.naval++; }
+                    else if (ai.tech.nuke < 3 && ai.gold >= UPGRADE_COSTS.nuke(ai.tech.nuke)) { ai.gold -= UPGRADE_COSTS.nuke(ai.tech.nuke); ai.tech.nuke++; }
+                    else if (ai.tech.nuke > 0 && ai.tech.rd < 50 && ai.gold >= UPGRADE_COSTS.rd(ai.tech.rd)) { ai.gold -= UPGRADE_COSTS.rd(ai.tech.rd); ai.tech.rd++; }
+                    if(oldNuke === 0 && ai.tech.nuke === 1) logEvent(`${ai.name} unlocked Nuclear Silo!`, 'warning');
+
+                    if (Math.random() < dt * 1.5) {
+                        let myCountries = state.countries.filter(c => c.ownerId === ai.id && !c.isWater); if (myCountries.length === 0) return;
+                        if (ai.tech.nuke > 0 && ai.gold >= UPGRADE_COSTS.missileLaunch && Math.random() < 0.1) {
+                            const userTargets = state.countries.filter(c => c.ownerId === 1 && state.players[1].shieldActiveUntil < now && !c.isWater && !c.isUltimateFenced);
+                            if(userTargets.length > 0) fireMissile(ai.id, userTargets[Math.floor(Math.random() * userTargets.length)].id, now);
+                        }
+                        const source = myCountries.sort((a, b) => b.army - a.army)[0];
+                        if (source && source.army > 50) {
+                            let weaponType = WEAPONS.ARMY; let preferNaval = ai.strat === 'naval_heavy' ? 0.4 : 0.7; let preferAir = ai.strat === 'air_heavy' ? 0.3 : 0.5;
+                            if (ai.tech.naval > 0 && Math.random() > preferNaval) weaponType = WEAPONS.NAVAL; else if (ai.tech.air > 0 && Math.random() > preferAir) weaponType = WEAPONS.AIR;
+                            let targets = state.countries.filter(c => c.ownerId !== ai.id && !c.isWater);
+                            const hasEnemyNeighbors = source.neighbors.some(nid => state.countries.find(x => x.id === nid)?.ownerId !== ai.id);
+                            const armyReachSq = hasEnemyNeighbors ? 250*250 : 600*600; 
+                            if (weaponType === WEAPONS.ARMY) { targets = targets.filter(c => source.continent === c.continent && (source.neighbors.includes(c.id) || getDistSq(c, source) <= armyReachSq)); }
+                            if (weaponType === WEAPONS.AIR) targets = targets.filter(c => getDistSq(c, source) <= MAX_AIR_RANGE_SQ);
+                            if (weaponType !== WEAPONS.ARMY && ai.tech.advArmy < 5) { targets = targets.filter(c => c.continent === source.continent); }
+                            targets = targets.filter(t => { const tp = state.players.find(x => x.id === t.ownerId); if (t.isUltimateFenced) return false; if (tp && tp.shieldActiveUntil > now && t.ownerId !== ai.id) return false; if (gp > 0 && t.ownerId !== 0 && t.ownerId !== ai.id) return false; return true; });
+                            if (targets.length > 0) { const target = targets.sort((a, b) => a.army - b.army)[0]; if (source.army > target.army * 0.8 || source.army > 500) sendTroops(source, target, ai, weaponType); }
+                        }
+                    }
+                });
+            };
+
+            const sendTroops = (source, target, player, wType) => {
+                let sentRatio = 0.5; let duration = 0.8;
+                if (wType === WEAPONS.AIR) { sentRatio = 0.4; duration = 0.4; } if (wType === WEAPONS.NAVAL) { sentRatio = 0.8; duration = 1.2; }
+                if (wType === WEAPONS.AIR) duration /= (1 + player.tech.advAir * 0.2); if (wType === WEAPONS.NAVAL) duration /= (1 + player.tech.advNaval * 0.2);
+                if (player.tech.quantum) duration *= 0.1;
+                const sentArmy = source.army * sentRatio; source.army -= sentArmy;
+                engine.current.movements.push({ id: Math.random().toString(36), fromId: source.id, toId: target.id, ownerId: player.id, amount: sentArmy, type: wType, progress: 0, duration: duration, startX: source.cx, startY: source.cy, dead: false });
+            };
+
+            const fireMissile = (playerId, targetId, now) => {
+                const state = engine.current; const player = state.players.find(p => p.id === playerId); const target = state.countries.find(c => c.id === targetId); const targetPlayer = state.players.find(p => p.id === target.ownerId);
+                if (player.gold >= UPGRADE_COSTS.missileLaunch) {
+                    player.gold -= UPGRADE_COSTS.missileLaunch;
+                    if (target.isUltimateFenced) { playSound('error'); state.popups.push({ x: target.cx, y: target.cy - 20, text: "FENCE ABSORBED!", color: '#eab308', life: 2 }); } 
+                    else if (targetPlayer && targetPlayer.shieldActiveUntil > now) { playSound('error'); state.popups.push({ x: target.cx, y: target.cy - 20, text: "MISSILE DEFLECTED!", color: '#0ea5e9', life: 2 }); } 
+                    else { playSound('nuke'); state.shockwaves.push({ x: target.cx, y: target.cy, life: 1.5 }); captureBase(state, target, 0); target.army = 0; state.popups.push({ x: target.cx, y: target.cy, text: "ANNIHILATED", color: '#ef4444', life: 2 }); if(playerId === 1) logEvent("Nuke Launch Successful!", "success"); }
+                    if(playerId === 1) engine.current.targetingMissile = false;
+                }
+            };
+
+            const deployOrbital = (targetId) => {
+                const state = engine.current; const player = state.players[1]; const target = state.countries.find(c => c.id === targetId);
+                if (player.gold >= UPGRADE_COSTS.orbital) {
+                    player.gold -= UPGRADE_COSTS.orbital; playSound('orbital'); state.tracers.push({ x: target.cx, y1: target.cy - 1000, x2: target.cx, y2: target.cy, life: 1.5, isOrbital: true });
+                    setTimeout(() => { if(engine.current) { captureBase(engine.current, target, 0); target.army = 0; engine.current.countries.forEach(c => { if(getDistSq(c, target) <= 300*300 && !c.isWater) c.army *= 0.5; }); engine.current.popups.push({ x: target.cx, y: target.cy, text: "ION STRIKE!", color: '#0ea5e9', life: 3 }); logEvent("Orbital Strike Deployed!", "warning"); } }, 500);
+                } else playSound('error'); state.targetingOrbital = false;
+            };
+
+            const deployEMP = (targetId) => {
+                const state = engine.current; const player = state.players[1]; const target = state.countries.find(c => c.id === targetId);
+                if (player.gold >= UPGRADE_COSTS.emp) {
+                    player.gold -= UPGRADE_COSTS.emp; playSound('emp'); state.shockwaves.push({ x: target.cx, y: target.cy, life: 1.0, isEmp: true });
+                    state.countries.forEach(c => { if(getDistSq(c, target) <= 500*500 && !c.isWater && c.ownerId !== 1) c.isEmpedUntil = Date.now() + 20000; });
+                    state.popups.push({ x: target.cx, y: target.cy, text: "EMP DETONATED", color: '#38bdf8', life: 2 }); logEvent("EMP deployed! Enemy defenses disabled.", "info");
+                } else playSound('error'); state.targetingEMP = false;
+            };
+
+            const buyShield = () => { const player = engine.current.players[1]; if (player.gold >= UPGRADE_COSTS.shield && shieldTimeLeft === 0) { playSound('upgrade'); player.gold -= UPGRADE_COSTS.shield; player.shieldActiveUntil = Date.now() + 150000; } };
+
+            const getSvgCoords = (clientX, clientY) => ({ x: (clientX - transform.x) / transform.scale, y: (clientY - transform.y) / transform.scale });
+            const touchDist = (touches) => Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY);
+
+            const handleCountryClick = (e, clickedCountryId) => {
+                if (mapLocked && e.type !== 'pointerdown') return;
+                const state = engine.current; if (!state) return;
+
+                if (state.targetingMissile) { fireMissile(1, clickedCountryId, Date.now()); return; }
+                if (state.targetingOrbital) { deployOrbital(clickedCountryId); return; }
+                if (state.targetingEMP) { deployEMP(clickedCountryId); return; }
+                
+                if (state.targetingDeployArmy) {
+                    const c = state.countries.find(x => x.id === clickedCountryId); const player = state.players[1];
+                    if (c && !c.isWater) {
+                        if (player.gold >= 4500000) {
+                            playSound('upgrade'); player.gold -= 4500000;
+                            if (c.ownerId !== 1) { captureBase(state, c, 1); c.army = 3000; } else { c.army += 3000; }
+                            state.popups.push({ x: c.cx, y: c.cy, text: `+3000 ARMY DEPLOYED!`, color: '#3b82f6', life: 2 }); logEvent("Instant 3000 Army Deployed!", "success");
+                        } else { playSound('error'); state.popups.push({ x: c.cx, y: c.cy, text: "Not enough gold!", color: '#ef4444', life: 1 }); }
+                    } else { playSound('error'); }
+                    state.targetingDeployArmy = false; return;
+                }
+                
+                if (state.targetingAutoRifle) {
+                    const c = state.countries.find(x => x.id === clickedCountryId);
+                    if (c && c.ownerId === 1 && !c.isWater) {
+                        if (!c.hasAutoRifle) { playSound('upgrade'); c.hasAutoRifle = true; c.autoRifleActive = true; c.autoRifleUptime = 0; state.popups.push({ x: c.cx, y: c.cy, text: `AUTO-RIFLE MOUNTED!`, color: '#22c55e', life: 2 }); logEvent("Territory Upgraded: Auto-Rifle Base Active!", "success"); } else playSound('error');
+                    } else playSound('error');
+                    state.targetingAutoRifle = false; return;
+                }
+
+                if (state.targetingAutoLauncher) {
+                    const c = state.countries.find(x => x.id === clickedCountryId);
+                    if (c && c.ownerId === 1 && !c.isWater) {
+                        if (!state.autoLauncher.bases.includes(c.id)) { state.autoLauncher.bases.push(c.id); playSound('upgrade'); state.popups.push({ x: c.cx, y: c.cy, text: `${state.autoLauncher.bases.length}/3 LINKED`, color: '#eab308', life: 1.5 }); }
+                        if (state.autoLauncher.bases.length === 3) { state.autoLauncher.active = true; state.targetingAutoLauncher = false; state.popups.push({ x: c.cx, y: c.cy, text: `AUTO LAUNCHER ACTIVE!`, color: '#ef4444', life: 2 }); logEvent("Trinity Auto-Launcher Activated!", "warning"); }
+                    } else playSound('error'); return;
+                }
+                
+                if (state.targetingCannonDeploy) {
+                    const c = state.countries.find(x => x.id === clickedCountryId);
+                    if (c && c.ownerId === 1 && !c.isWater) {
+                        const player = state.players[1];
+                        if (c.cannonLevel === 0 && player.gold >= UPGRADE_COSTS.cannonDeploy) { playSound('upgrade'); player.gold -= UPGRADE_COSTS.cannonDeploy; c.cannonLevel = 1; state.popups.push({ x: c.cx, y: c.cy, text: `Cannon Deployed!`, color: '#eab308', life: 1.5 }); } else { playSound('error'); state.popups.push({ x: c.cx, y: c.cy, text: "Cannot afford/deployed", color: '#ef4444', life: 1 }); }
+                    }
+                    state.targetingCannonDeploy = false; return;
+                }
+
+                if (state.targetingCarrierId !== null) {
+                    const c = state.countries.find(x => x.id === clickedCountryId);
+                    if (c && c.ownerId === 1 && !c.isWater) {
+                        const player = state.players[1]; const carrierIndex = state.carriers.findIndex(x => x.id === state.targetingCarrierId);
+                        if (carrierIndex !== -1 && player.gold >= UPGRADE_COSTS.carrierDeploy) {
+                            playSound('upgrade'); player.gold -= UPGRADE_COSTS.carrierDeploy; state.carriers[carrierIndex].active = true; state.carriers[carrierIndex].baseId = c.id; state.carriers[carrierIndex].level = 1; state.carriers[carrierIndex].timer = 5; state.popups.push({ x: c.cx, y: c.cy, text: `CARRIER LINKED!`, color: '#3b82f6', life: 2 }); logEvent(`Carrier Deployed!`, "info");
+                        } else { playSound('error'); state.popups.push({ x: c.cx, y: c.cy, text: "Cannot afford (90k needed)", color: '#ef4444', life: 1 }); }
+                    } else { playSound('error'); }
+                    state.targetingCarrierId = null; return;
+                }
+
+                if (state.targetingNMC) {
+                    const c = state.countries.find(x => x.id === clickedCountryId);
+                    if (c && c.ownerId === 1 && !c.isWater) {
+                        const player = state.players[1]; const hasNmcElsewhere = state.countries.some(x => x.ownerId === 1 && x.nmcLevel > 0 && x.id !== c.id);
+                        if (hasNmcElsewhere) { playSound('error'); state.popups.push({ x: c.cx, y: c.cy, text: "Only 1 NMC allowed!", color: '#ef4444', life: 1.5 }); }
+                        else if (c.nmcLevel === 0 && player.gold >= UPGRADE_COSTS.nmcDeploy) { playSound('upgrade'); player.gold -= UPGRADE_COSTS.nmcDeploy; c.nmcLevel = 1; c.nmcTimer = 20; player.tech.nmc = 1; state.popups.push({ x: c.cx, y: c.cy, text: `NMC DEPLOYED`, color: '#c084fc', life: 2 }); logEvent("Nuclear Multi-Cannon Constructed!", "warning"); } else playSound('error');
+                    } else playSound('error');
+                    state.targetingNMC = false; return;
+                }
+
+                if (state.targetingSupporter) {
+                    const c = state.countries.find(x => x.id === clickedCountryId);
+                    if (c && c.ownerId === 1 && c.cannonLevel === 5 && !c.hasSupporter && !c.isWater) {
+                        const player = state.players[1];
+                        if (player.gold >= UPGRADE_COSTS.supporter && player.supportersCount < 4) { playSound('upgrade'); player.gold -= UPGRADE_COSTS.supporter; player.supportersCount++; c.hasSupporter = true; c.originalBase = c.id; state.popups.push({ x: c.cx, y: c.cy, text: `SUPPORTER ATTACHED!`, color: '#10b981', life: 1.5 }); } else playSound('error');
+                    } else playSound('error');
+                    state.targetingSupporter = false; return;
+                }
+
+                if (state.targetingFence) {
+                    const c = state.countries.find(x => x.id === clickedCountryId);
+                    if (c && c.ownerId === 1 && !c.isWater) {
+                        const player = state.players[1];
+                        if (player.fencesCount < 5 && !c.isUltimateFenced) { playSound('upgrade'); player.fencesCount++; c.isUltimateFenced = true; state.popups.push({ x: c.cx, y: c.cy, text: `BASE SECURED`, color: '#eab308', life: 2 }); } else playSound('error');
+                    } else playSound('error');
+                    state.targetingFence = false; return;
+                }
+
+                const c = state.countries.find(x => x.id === clickedCountryId);
+                if (c && c.ownerId === 1 && c.army > 5 && !c.isWater) {
+                    state.dragSourceId = clickedCountryId; const clientX = e.touches ? e.touches[0].clientX : e.clientX; const clientY = e.touches ? e.touches[0].clientY : e.clientY; const coords = getSvgCoords(clientX, clientY); state.mouseX = coords.x; state.mouseY = coords.y;
+                }
+            };
+
+            const handleBgPointerDown = (e) => { if(mapLocked) return; if (e.touches && e.touches.length === 2) { initialPinchDist.current = touchDist(e.touches); isPanning.current = false; return; } const clientX = e.touches ? e.touches[0].clientX : e.clientX; const clientY = e.touches ? e.touches[0].clientY : e.clientY; isPanning.current = true; panStart.current = { x: clientX, y: clientY, panX: transform.x, panY: transform.y }; };
+
+            const handleGlobalMove = (e) => {
+                if(mapLocked && !engine.current?.dragSourceId) return;
+                if (e.touches && e.touches.length === 2 && !mapLocked) { const dist = touchDist(e.touches); if (initialPinchDist.current) { const scaleChange = dist / initialPinchDist.current; setTransform(t => ({ ...t, scale: Math.max(0.1, Math.min(t.scale * scaleChange, 3)) })); } initialPinchDist.current = dist; return; }
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX; const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                if (isPanning.current && !mapLocked) { setTransform(t => ({ ...t, x: panStart.current.panX + (clientX - panStart.current.x), y: panStart.current.panY + (clientY - panStart.current.y) })); } else if (engine.current && engine.current.dragSourceId !== null) { const coords = getSvgCoords(clientX, clientY); engine.current.mouseX = coords.x; engine.current.mouseY = coords.y; }
+            };
+
+            const handleGlobalUp = (e) => {
+                if (!e.touches || e.touches.length < 2) { initialPinchDist.current = null; } if (isPanning.current) isPanning.current = false;
+                const state = engine.current;
+                if (state && state.dragSourceId !== null) {
+                    let cx = e.changedTouches ? e.changedTouches[0].clientX : e.clientX; let cy = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
+                    const elem = document.elementFromPoint(cx, cy); const countryElem = elem ? elem.closest('[data-id]') : null; const targetId = countryElem ? parseInt(countryElem.getAttribute('data-id')) : null;
+
+                    if (targetId !== null) {
+                        const source = state.countries.find(c => c.id === state.dragSourceId); const target = state.countries.find(c => c.id === targetId); const player = state.players[1];
+                        if (source && target && source.id !== target.id && !target.isWater) {
+                            let isValid = false;
+                            if (target.ownerId === source.ownerId) { isValid = true; } else {
+                                const hasEnemyNeighbors = source.neighbors.some(nid => state.countries.find(x => x.id === nid)?.ownerId !== 1); const armyReachSq = hasEnemyNeighbors ? 250*250 : 600*600; 
+                                if (source.continent === target.continent) {
+                                    if (selectedWeapon === WEAPONS.ARMY && (source.neighbors.includes(target.id) || getDistSq(target, source) <= armyReachSq)) isValid = true;
+                                    if (selectedWeapon === WEAPONS.AIR && player.tech.air > 0 && getDistSq(target, source) <= MAX_AIR_RANGE_SQ) isValid = true;
+                                    if (selectedWeapon === WEAPONS.NAVAL && player.tech.naval > 0) isValid = true;
+                                } else {
+                                    if (player.tech.advArmy >= 5) {
+                                        if (selectedWeapon === WEAPONS.AIR && player.tech.air > 0 && getDistSq(target, source) <= MAX_AIR_RANGE_SQ) isValid = true;
+                                        if (selectedWeapon === WEAPONS.NAVAL && player.tech.naval > 0) isValid = true;
+                                        if (selectedWeapon === WEAPONS.ARMY) { playSound('error'); state.popups.push({ x: target.cx, y: target.cy, text: "Army cannot cross ocean!", color: '#ef4444', life: 1.5 }); }
+                                    } else { playSound('error'); state.popups.push({ x: target.cx, y: target.cy, text: "Req. Max Adv. Army to cross ocean", color: '#ef4444', life: 1.5 }); }
+                                }
+                            }
+                            if (isValid) sendTroops(source, target, player, selectedWeapon);
+                            else if (!isValid && source.continent === target.continent) { playSound('error'); state.popups.push({ x: target.cx, y: target.cy, text: "Out of Range", color: '#94a3b8', life: 1 }); }
+                        }
+                    }
+                    state.dragSourceId = null;
+                }
+            };
+
+            const handleWheel = (e) => { if (mapLocked) return; e.preventDefault(); setTransform(t => { let newScale = Math.max(0.1, Math.min(t.scale * (e.deltaY > 0 ? 0.8 : 1.2), 3)); const scaleRatio = newScale / t.scale; return { x: e.clientX - (e.clientX - t.x) * scaleRatio, y: e.clientY - (e.clientY - t.y) * scaleRatio, scale: newScale }; }); };
+            const handleZoom = (dir) => { if (mapLocked) return; setTransform(t => { let newScale = Math.max(0.1, Math.min(t.scale * (dir > 0 ? 1.3 : 0.7), 3)); const cx = window.innerWidth/2; const cy = window.innerHeight/2; return { x: cx - (cx - t.x) * (newScale / t.scale), y: cy - (cy - t.y) * (newScale / t.scale), scale: newScale }; }); };
+
+            const handleUpgrade = (type) => {
+                const player = engine.current.players[1]; const state = engine.current;
+                
+                if (type === 'upgrade_cannons') { let upgradedAny = false; state.countries.filter(c => c.ownerId === 1 && c.cannonLevel > 0 && c.cannonLevel < 5).forEach(c => { const cost = UPGRADE_COSTS.cannonUp(c.cannonLevel); if (player.gold >= cost) { player.gold -= cost; c.cannonLevel++; upgradedAny = true; state.popups.push({ x: c.cx, y: c.cy, text: `Lvl ${c.cannonLevel}!`, color: '#eab308', life: 1.5 }); } }); if(upgradedAny) playSound('upgrade'); else playSound('error'); return; }
+                if (type === 'upgrade_nmc') { const c = state.countries.find(x => x.ownerId === 1 && x.nmcLevel > 0); if (c && c.nmcLevel < 11) { const cost = UPGRADE_COSTS.nmcUp(c.nmcLevel); if (player.gold >= cost) { player.gold -= cost; c.nmcLevel++; player.tech.nmc = c.nmcLevel; const newMaxTimer = c.nmcLevel >= 11 ? 5 : (20 - (c.nmcLevel - 1)); if (c.nmcTimer > newMaxTimer) c.nmcTimer = newMaxTimer; playSound('upgrade'); state.popups.push({ x: c.cx, y: c.cy, text: `NMC Lvl ${c.nmcLevel}!`, color: '#c084fc', life: 2 }); return; } } playSound('error'); return; }
+                
+                if (type.startsWith('upgrade_carrier_')) { const cid = parseInt(type.split('_')[2]); const c = state.carriers.find(x => x.id === cid); if (c && c.active && c.level < 10) { const cost = UPGRADE_COSTS.carrierUp(c.level); if (player.gold >= cost) { player.gold -= cost; c.level++; playSound('upgrade'); return; } } playSound('error'); return; }
+                if (type.startsWith('unlock_carrier_')) { const cid = parseInt(type.split('_')[2]); if (player.gold >= UPGRADE_COSTS.carrierUnlock) { player.gold -= UPGRADE_COSTS.carrierUnlock; const c = state.carriers.find(x => x.id === cid); if(c) { c.unlocked = true; if (cid === 1) player.tech.carrier1Unlocked = true; if (cid === 2) player.tech.carrier2Unlocked = true; if (cid === 3) player.tech.carrier3Unlocked = true; } playSound('upgrade'); logEvent(`Carrier Type ${cid} Unlocked!`, 'info'); } else playSound('error'); return; }
+
+                if (type === 'ultimateFenceUnlock') { if (player.gold >= UPGRADE_COSTS.ultimateFenceUnlock && !player.tech.fenceUnlocked) { player.gold -= UPGRADE_COSTS.ultimateFenceUnlock; player.tech.fenceUnlocked = true; playSound('upgrade'); logEvent("Ultimate Fence Unlocked!", "info"); } else playSound('error'); return; }
+                if (type === 'autoLauncherUnlock') { if (player.gold >= UPGRADE_COSTS.autoLauncherUnlock && !player.tech.autoLauncherUnlocked) { player.gold -= UPGRADE_COSTS.autoLauncherUnlock; player.tech.autoLauncherUnlocked = true; playSound('upgrade'); } else playSound('error'); return; }
+                if (['orbital', 'emp', 'quantum', 'nano', 'stealth'].includes(type)) { if (player.gold >= UPGRADE_COSTS[type] && !player.tech[type]) { player.gold -= UPGRADE_COSTS[type]; player.tech[type] = true; playSound('upgrade'); logEvent(`${type.toUpperCase()} Tech Unlocked!`, "info"); } else playSound('error'); return; }
+
+                if (type === 'heli_unlock') { const allMaxed = state.carriers.every(c=>c.level===10); if (player.gold >= 5000000 && !player.tech.heliUnlocked && allMaxed) { player.gold -= 5000000; player.tech.heliUnlocked = true; playSound('upgrade'); logEvent("Attack Choppers Unlocked!", "warning"); state.carriers.forEach(c => { state.helicopters.push({ id: Math.random(), carrierId: c.id, targetId: null, phase: 'reloading', timer: 5, x: c.x, y: c.y, startX: c.x, startY: c.y, progress: 0, angle: 0, orbitAngle: 0 }); state.helicopters.push({ id: Math.random(), carrierId: c.id, targetId: null, phase: 'reloading', timer: 10, x: c.x, y: c.y, startX: c.x, startY: c.y, progress: 0, angle: 0, orbitAngle: 0 }); state.helicopters.push({ id: Math.random(), carrierId: c.id, targetId: null, phase: 'reloading', timer: 15, x: c.x, y: c.y, startX: c.x, startY: c.y, progress: 0, angle: 0, orbitAngle: 0 }); }); } else playSound('error'); return; }
+
+                if (type === 'activate_island') { const island = state.countries.find(c => c.isIsland && c.ownerId === 1); if (island) { if (player.gold >= UPGRADE_COSTS.islandTesla && !player.tech.islandTeslaActive) { player.gold -= UPGRADE_COSTS.islandTesla; player.tech.islandTeslaActive = true; state.countries.filter(c => c.isIsland && c.ownerId === 1).forEach(isl => { isl.teslaActive = true; isl.teslaLoopTimer = 120; isl.teslaMode = 'active'; isl.teslaSubTimer = 0; }); playSound('upgrade'); logEvent("Island Tesla City ONLINE!", "info"); } else playSound('error'); } else { playSound('error'); logEvent("You must capture an Island first!", "danger"); } return; }
+                if (type === 'activate_island_aa') { const island = state.countries.find(c => c.isIsland && c.ownerId === 1); if (island) { if (player.gold >= UPGRADE_COSTS.islandAA && !player.tech.islandAAActive) { player.gold -= UPGRADE_COSTS.islandAA; player.tech.islandAAActive = true; state.countries.filter(c => c.isIsland && c.ownerId === 1).forEach(isl => isl.islandAATimer = 0); playSound('upgrade'); logEvent("Island Red Lightning AA ONLINE!", "info"); } else playSound('error'); } else playSound('error'); return; }
+
+                let cost = UPGRADE_COSTS[type](player.tech[type] || 0); if (player.gold >= cost) { playSound('upgrade'); player.gold -= cost; player.tech[type]++; } else playSound('error');
+            };
+
+            const cancelTargeting = () => { const s = engine.current; s.targetingMissile = false; s.targetingCannonDeploy = false; s.targetingFence = false; s.targetingNMC = false; s.targetingSupporter = false; s.targetingAutoLauncher = false; s.targetingOrbital = false; s.targetingEMP = false; s.targetingCarrierId = null; s.targetingAutoRifle = false; s.targetingDeployArmy = false; }
+
+            if (!gameStarted) return <Lobby onStart={initGame} />;
+
+            const state = engine.current;
+            const user = state.players[1] || { gold: 0, tech: {} };
+            const dragSource = state.dragSourceId !== null ? state.countries.find(c => c.id === state.dragSourceId) : null;
+            const theIslands = state.countries.filter(c => c.isIsland); 
+            const ownsAnIsland = theIslands.some(i => i.ownerId === 1);
+            
+            const isTargetingAny = state.targetingMissile || state.targetingCannonDeploy || state.targetingCarrierId !== null || state.targetingFence || state.targetingNMC || state.targetingSupporter || state.targetingAutoLauncher || state.targetingOrbital || state.targetingEMP || state.targetingAutoRifle || state.targetingDeployArmy;
+
+            let validCountriesForStats = state.countries.filter(c => !c.isWater);
+            if (statTab !== 'All') validCountriesForStats = validCountriesForStats.filter(c => c.continent === statTab);
+            const totalLand = validCountriesForStats.length;
+            const leaderboard = state.players.filter(p => p.id !== 0 && p.isAlive).map(p => { const count = validCountriesForStats.filter(c => c.ownerId === p.id).length; return { ...p, percent: totalLand > 0 ? ((count / totalLand) * 100).toFixed(1) : 0, count }; }).filter(p => p.count > 0).sort((a,b) => b.percent - a.percent);
+
+            let acc = 0; const pieStops = leaderboard.map(p => { const start = acc; acc += parseFloat(p.percent); return `${p.color} ${start}% ${acc}%`; }).join(', ');
+
+            const baseUpgrades = [
+                { t: 'mine', i: 'Coins', col: 'text-yellow-500', n: 'Gold Mine', d: '+10% boost till Lvl 10, then massive +50% compounding!', max: 30, req: null, l: false },
+                { t: 'army', i: 'Sword', col: 'text-blue-500', n: 'Army Base', d: 'Increases passive troop recruitment speed.', max: 10, req: null, l: false },
+                { t: 'air', i: 'Plane', col: 'text-sky-500', n: 'Airforce', d: 'Unlocks Jets. 50% map radius. 1.2x Damage.', max: 10, req: 'Army Lvl 10', l: user.tech.army < 10 },
+                { t: 'naval', i: 'Ship', col: 'text-indigo-500', n: 'Naval Fleet', d: 'Unlocks Ships. Global Range. Heavy 1.5x Damage.', max: 10, req: 'Air Lvl 10', l: user.tech.air < 10 },
+                { t: 'nuke', i: 'Zap', col: 'text-red-500', n: 'Nuclear Silo', d: 'Unlocks destructive Missile Launches. Up to Lvl 3.', max: 3, req: 'Naval Lvl 10', l: user.tech.naval < 10 }
+            ];
+
+            const advUpgrades = [
+                { t: 'advArmy', i: 'Sword', col: 'text-purple-600', n: 'Adv. Army Gen', d: 'Massive multiplier. Max this to cross Continents!', max: 5 },
+                { t: 'advAir', i: 'Plane', col: 'text-purple-600', n: 'Adv. Air Strike', d: 'Increases Air speed & damage.', max: 5 },
+                { t: 'advNaval', i: 'Ship', col: 'text-purple-600', n: 'Adv. Naval Fleet', d: 'Increases Naval speed & extreme damage.', max: 5 }
+            ];
+
+            const basicMaxed = user.tech.mine>=30 && user.tech.army>=10 && user.tech.air>=10 && user.tech.naval>=10 && user.tech.nuke>=3;
+            const advMaxed = basicMaxed && user.tech.advArmy>=5 && user.tech.advAir>=5 && user.tech.advNaval>=5;
+            const rdMaxed = user.tech.rd >= 50;
+            const allCarriersMaxed = state.carriers.every(c => c.level === 10);
+
+            const hasDeployedCannon = state.countries.some(c => c.ownerId === 1 && c.cannonLevel > 0);
+            const hasMaxCannon = state.countries.some(c => c.ownerId === 1 && c.cannonLevel === 5);
+            const hasDeployedNMC = state.countries.some(c => c.ownerId === 1 && c.nmcLevel > 0);
+
+            return (
+                <div className={`relative w-full h-screen map-bg overflow-hidden ${isTargetingAny ? 'targeting-mode' : ''}`} onWheel={handleWheel}>
+                    <div className="clouds"></div>
+                    
+                    <div className="absolute top-4 left-4 z-30 flex flex-col gap-2 items-start">
+                        <button onClick={() => setShowWeaponPanel(!showWeaponPanel)} className="panel-3d p-3 text-slate-800 btn-3d rounded-full shadow-xl"><Icon name={showWeaponPanel ? "EyeOff" : "Sword"} size={20} /></button>
+                        {showWeaponPanel && !viewMode && (
+                            <div className="panel-3d p-1.5 flex flex-col gap-1.5 mt-2 shadow-xl border border-slate-300">
+                                <WeaponBtn icon={<Icon name="Sword" size={14}/>} name="Army" active={selectedWeapon===WEAPONS.ARMY} onClick={()=>setSelectedWeapon(WEAPONS.ARMY)} />
+                                <WeaponBtn icon={<Icon name="Plane" size={14}/>} name="Airforce" active={selectedWeapon===WEAPONS.AIR} locked={user.tech.air===0} onClick={()=>setSelectedWeapon(WEAPONS.AIR)} />
+                                <WeaponBtn icon={<Icon name="Ship" size={14}/>} name="Naval" active={selectedWeapon===WEAPONS.NAVAL} locked={user.tech.naval===0} onClick={()=>setSelectedWeapon(WEAPONS.NAVAL)} />
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="absolute inset-0 z-0" style={{ touchAction: 'none' }} onPointerDown={handleBgPointerDown} onPointerMove={handleGlobalMove} onPointerUp={handleGlobalUp} onPointerLeave={handleGlobalUp}>
+                        <div style={{ transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`, transformOrigin: '0 0', width: MAP_WIDTH, height: MAP_HEIGHT, position: 'absolute' }}>
+                            <svg width="100%" height="100%" viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`} className="overflow-visible drop-shadow-[0_30px_50px_rgba(0,0,0,0.2)]">
+                                
+                                {state.countries.filter(c => c.isWater).map(c => <path key={c.id} d={c.path} className="water-body" />)}
+                                {state.countries.filter(c => !c.isWater).map(c => <path key={`base-${c.id}`} d={c.path} className="country-base" transform="translate(0, 10)" />)}
+
+                                {!viewMode && CONTINENTS.map(cont => {
+                                    const contCountries = state.countries.filter(c => c.continent === cont && !c.isWater);
+                                    if(contCountries.length === 0) return null;
+                                    const avgX = contCountries.reduce((s, c) => s + c.cx, 0) / contCountries.length;
+                                    const avgY = contCountries.reduce((s, c) => s + c.cy, 0) / contCountries.length;
+                                    return <text key={`label-${cont}`} x={avgX} y={avgY} className="continent-label">{cont.toUpperCase()}</text>
+                                })}
+
+                                {state.autoLauncher.bases.length > 1 && (
+                                    <polygon points={state.autoLauncher.bases.map(id => `${state.countries.find(x => x.id === id).cx},${state.countries.find(x => x.id === id).cy}`).join(' ')} fill="rgba(239, 68, 68, 0.1)" stroke="#ef4444" strokeWidth="4" strokeDasharray="15 10" className="animate-pulse pointer-events-none" />
+                                )}
+
+                                {state.countries.filter(c => !c.isWater).map(c => {
+                                    const p = state.players.find(x => x.id === c.ownerId);
+                                    const isFortified = c.army >= (c.cannonLevel > 0 ? Math.max(CAP_LIMIT, c.cannonLevel*3000) : CAP_LIMIT) && c.ownerId !== 0;
+                                    const isShielded = p && p.shieldActiveUntil > Date.now();
+                                    
+                                    let outOfRange = false;
+                                    if(dragSource && c.id !== dragSource.id && !c.isIsland) {
+                                        if (c.ownerId !== dragSource.ownerId) { 
+                                            const hasEnemyNeighbors = dragSource.neighbors.some(nid => state.countries.find(x => x.id === nid)?.ownerId !== dragSource.ownerId);
+                                            const reachSq = hasEnemyNeighbors ? 250*250 : 600*600;
+                                            if (selectedWeapon === WEAPONS.ARMY && dragSource.continent === c.continent && !dragSource.neighbors.includes(c.id) && getDistSq(c, dragSource) > reachSq) outOfRange = true;
+                                            if (selectedWeapon === WEAPONS.ARMY && dragSource.continent !== c.continent) outOfRange = true;
+                                            if (selectedWeapon === WEAPONS.AIR && getDistSq(c, dragSource) > MAX_AIR_RANGE_SQ) outOfRange = true;
+                                        }
+                                    }
+                                    if(dragSource && c.isIsland && selectedWeapon !== WEAPONS.AIR && selectedWeapon !== WEAPONS.NAVAL && c.ownerId !== dragSource.ownerId) outOfRange = true;
+
+                                    return (
+                                        <g key={c.id} className={`${isFortified ? 'aura-glow' : ''} ${c.nmcLevel > 0 ? 'nmc-glow' : ''}`}>
+                                            <path d={c.path} fill={p ? p.color : '#e2e8f0'} data-id={c.id} className="country-surface" style={{ opacity: outOfRange ? 0.4 : 1 }} onPointerDown={(e) => { e.stopPropagation(); handleCountryClick(e, c.id); }} />
+                                            <path d={c.path} className="country-highlight" />
+                                            
+                                            {isShielded && <path d={c.path} className="shield-fence" />}
+                                            {c.isUltimateFenced && <path d={c.path} className="ultimate-fence" />}
+                                            {c.isAegis && <path d={c.path} className="aegis-fence" />}
+                                            
+                                            {c.minefieldUntil > Date.now() && <g className="pointer-events-none"><circle cx={c.cx} cy={c.cy} r="40" fill="rgba(34, 197, 94, 0.3)" stroke="#22c55e" strokeWidth="4" strokeDasharray="10 10" className="animate-[spin_3s_linear_infinite]" /><text x={c.cx} y={c.cy-30} fontSize="14" fill="#166534" fontWeight="black" textAnchor="middle" style={{fontFamily:'Space Grotesk'}}>☢ TOXIC</text></g>}
+                                            {c.isEmpedUntil > Date.now() && <g className="pointer-events-none"><circle cx={c.cx} cy={c.cy} r="50" fill="rgba(56, 189, 248, 0.2)" stroke="#38bdf8" strokeWidth="2" strokeDasharray="5 5" className="animate-spin" /><text x={c.cx} y={c.cy-40} fontSize="14" fill="#0ea5e9" fontWeight="black" textAnchor="middle" style={{fontFamily:'Space Grotesk'}}>⚡ OFFLINE</text></g>}
+
+                                            <g>
+                                                <text x={c.cx} y={c.cy} className="army-text">{Math.floor(c.army)}</text>
+                                                {c.wall > 0 && <text x={c.cx} y={c.cy + 22} className="wall-text">🛡 {Math.floor(c.wall)}</text>}
+                                                {c.isIsland && <text x={c.cx} y={c.cy - 20} className="info-text" fill="#0f172a">🏝️ TESLA CITY</text>}
+                                            </g>
+                                            
+                                            {state.autoLauncher.bases.includes(c.id) && <g transform={`translate(${c.cx}, ${c.cy + 40})`} className="animate-pulse pointer-events-none"><circle cx="0" cy="0" r="14" fill="#1e293b" stroke="#f97316" strokeWidth="2"/><text y="4" fontSize="14" fill="#f97316" textAnchor="middle">🚀</text></g>}
+                                            {state.carriers.some(car=>car.baseId === c.id) && <g transform={`translate(${c.cx - 30}, ${c.cy - 30})`} className="animate-bounce pointer-events-none"><circle cx="0" cy="0" r="14" fill="#1e293b" stroke="#38bdf8" strokeWidth="2"/><text y="5" fontSize="14" fill="#38bdf8" textAnchor="middle">📡</text></g>}
+                                            {c.hasAutoRifle && <g transform={`translate(${c.cx - 20}, ${c.cy + 25})`} className="pointer-events-none"><circle cx="0" cy="0" r="12" fill="#064e3b" stroke="#22c55e" strokeWidth="2" className={c.autoRifleActive ? "animate-pulse" : "opacity-50"}/><text y="4" fontSize="10" fill="#4ade80" textAnchor="middle">🔫</text>{!c.autoRifleActive && <line x1="-10" y1="-10" x2="10" y2="10" stroke="#ef4444" strokeWidth="2"/>}</g>}
+
+                                            {c.cannonLevel > 0 && (
+                                                <g transform={`translate(${c.cx}, ${c.cy - 35})`} className="pointer-events-none">
+                                                    <ellipse cx="0" cy="5" rx="16" ry="8" fill="rgba(0,0,0,0.3)" filter="blur(2px)"/>
+                                                    <ellipse cx="0" cy="2" rx="14" ry="7" fill="#1e293b" stroke="#334155" strokeWidth="1"/>
+                                                    <ellipse cx="0" cy="-2" rx="14" ry="7" fill="#334155" />
+                                                    <circle cx="0" cy="-3" r="8" fill="#0f172a" />
+                                                    <path d="M-3,-3 L-2,-20 L2,-20 L3,-3 Z" fill="#94a3b8" stroke="#0f172a" strokeWidth="1"/>
+                                                    <path d="M-8,-2 C-8,-10 8,-10 8,-2 Z" fill="#64748b" stroke="#1e293b" strokeWidth="1.5"/>
+                                                    <text y="-25" className="info-text" style={{ fontSize: '10px' }}>Lv.{c.cannonLevel}</text>
+                                                    {c.army >= (c.hasSupporter?1000:3000) && <circle cx="0" cy="-18" r="3" fill="#eab308" className="animate-pulse" style={{filter: 'drop-shadow(0 0 5px #eab308)'}}/>}
+                                                    {c.hasSupporter && <g transform="translate(18, 8)"><rect x="-7" y="-4" width="14" height="7" fill="#10b981" rx="1.5" stroke="#065f46" strokeWidth="1"/><circle cx="-4" cy="3" r="2.5" fill="#0f172a"/><circle cx="4" cy="3" r="2.5" fill="#0f172a"/><rect x="-3" y="-5" width="6" height="2" fill="#34d399" rx="0.5"/></g>}
+                                                </g>
+                                            )}
+
+                                            {c.nmcLevel > 0 && (
+                                                <g transform={`translate(${c.cx + 30}, ${c.cy - 25}) scale(1.8)`} className="pointer-events-none">
+                                                    <circle cx="0" cy="0" r="10" fill="#1e293b" stroke="#ef4444" strokeWidth="2.5" className="animate-pulse"/>
+                                                    <text y="3" fontSize="8" fill="#ef4444" textAnchor="middle" fontWeight="bold">☢</text>
+                                                    <text y="-14" className="info-text" style={{fontSize: '7px'}}>Lv{c.nmcLevel}</text>
+                                                    {c.army < 10000 && <text y="18" className="info-text" style={{fontSize: '6px', fill: '#ef4444'}}>{Math.floor((c.army/10000)*100)}%</text>}
+                                                </g>
+                                            )}
+
+                                            {c.isIsland && c.teslaActive && (
+                                                <g transform={`translate(${c.cx}, ${c.cy + 30}) scale(1.5)`} className="pointer-events-none">
+                                                    <circle cx="0" cy="0" r="15" fill="none" stroke={c.teslaMode === 'active' ? "#ffffff" : "#94a3b8"} strokeWidth="3" className={c.teslaMode === 'active' ? "animate-ping" : ""} style={{filter: c.teslaMode === 'active' ? 'drop-shadow(0 0 15px #ffffff)' : 'none'}}/>
+                                                    <circle cx="0" cy="0" r="6" fill={c.teslaMode === 'active' ? "#ffffff" : "#64748b"} />
+                                                    <path d="M-2,-10 L3,-2 L-2,2 L5,10" fill="none" stroke={c.teslaMode === 'active' ? "#0ea5e9" : "#fff"} strokeWidth="2"/>
+                                                </g>
+                                            )}
+                                        </g>
+                                    );
+                                })}
+
+                                {dragSource && !viewMode && selectedWeapon === WEAPONS.AIR && <circle cx={dragSource.cx} cy={dragSource.cy} r={MAX_AIR_RANGE} fill="rgba(14, 165, 233, 0.05)" stroke="#0ea5e9" strokeWidth="4" strokeDasharray="25 25" className="animate-[spin_60s_linear_infinite]" pointerEvents="none" />}
+                                {!viewMode && theIslands.map(isl => { if (isl.teslaActive && isl.teslaMode === 'active') { return <circle key={`rng-${isl.id}`} cx={isl.cx} cy={isl.cy} r={MAX_AIR_RANGE * 0.49} fill="rgba(255, 255, 255, 0.05)" stroke="#ffffff" strokeWidth="3" strokeDasharray="10 10" pointerEvents="none" /> } return null; })}
+                                {!viewMode && state.countries.filter(c => c.hasAutoRifle && c.autoRifleActive).map((c, i) => ( <circle key={`ar-${i}`} cx={c.cx} cy={c.cy} r={40} fill="none" stroke="#4ade80" strokeWidth="2" strokeDasharray="5 5" className="animate-[spin_4s_linear_infinite]" pointerEvents="none" /> ))}
+
+                                {state.carriers.filter(car => car.active).map((car, idx) => (
+                                    <g key={car.id} transform={`translate(${car.x}, ${car.y})`} style={{ filter: 'drop-shadow(0 20px 25px rgba(0,0,0,0.5))' }}>
+                                        {car.type === 'original' && (
+                                            <g>
+                                                <path d="M-60,-10 L-40,-20 L50,-20 L60,0 L40,10 L-60,10 Z" fill="#64748b"/>
+                                                <path d="M-60,-15 L-40,-25 L50,-25 L60,-5 L40,5 L-60,5 Z" fill="#94a3b8" stroke="#1e293b" strokeWidth="2"/>
+                                                <line x1="-50" y1="-10" x2="40" y2="-10" stroke="#f8fafc" strokeWidth="3" strokeDasharray="10 5" />
+                                                <rect x="10" y="-35" width="20" height="15" fill="#475569" stroke="#0f172a" strokeWidth="1" rx="2"/>
+                                                <rect x="12" y="-38" width="16" height="15" fill="#cbd5e1" stroke="#1e293b" strokeWidth="1" rx="1"/>
+                                                <circle cx="20" cy="-35" r="3" fill="#ef4444" className="animate-pulse"/>
+                                                <circle cx="-30" cy="0" r="4" fill="#0f172a"/> <line x1="-30" y1="0" x2="-30" y2="10" stroke="#3b82f6" strokeWidth="2"/>
+                                                {!viewMode && <text y="20" fontSize="12" fill="#0f172a" textAnchor="middle" fontWeight="bold" style={{fontFamily:'Space Grotesk'}}>ORIGINAL Lv.{car.level}</text>}
+                                            </g>
+                                        )}
+                                        {car.type === 'nuke' && (
+                                            <g>
+                                                <path d="M-50,2 L-20,-23 L30,-13 L60,2 L30,17 L-20,27 Z" fill="#334155"/>
+                                                <path d="M-50,-3 L-20,-28 L30,-18 L60,-3 L30,12 L-20,22 Z" fill="#475569" stroke="#0f172a" strokeWidth="2"/>
+                                                <path d="M-40,-5 L-15,-20 L25,-13 L50,-5 L25,3 L-15,10 Z" fill="#94a3b8" />
+                                                <circle cx="-10" cy="-5" r="10" fill="#0f172a" stroke="#22c55e" strokeWidth="1"/>
+                                                <circle cx="-10" cy="-5" r="4" fill="#22c55e" className="animate-pulse"/>
+                                                <circle cx="20" cy="-5" r="4" fill="#020617"/> <line x1="20" y1="-5" x2="20" y2="-15" stroke="#3b82f6" strokeWidth="2"/>
+                                                {!viewMode && <text y="35" fontSize="12" fill="#166534" textAnchor="middle" fontWeight="bold" style={{fontFamily:'Space Grotesk'}}>TACTICAL Lv.{car.level}</text>}
+                                            </g>
+                                        )}
+                                        {car.type === 'plasma' && (
+                                            <g>
+                                                <path d="M-60,2 L-30,-28 L40,-8 L70,2 L40,12 L-30,32 Z" fill="#4c1d95"/>
+                                                <path d="M-60,-3 L-30,-33 L40,-13 L70,-3 L40,7 L-30,27 Z" fill="#6b21a8" stroke="#2e1065" strokeWidth="2"/>
+                                                <circle cx="10" cy="-5" r="16" fill="#1e1b4b" stroke="#38bdf8" strokeWidth="3"/>
+                                                <circle cx="10" cy="-5" r="6" fill="#38bdf8" className="animate-ping"/>
+                                                <line x1="-30" y1="-33" x2="-60" y2="-3" stroke="#d8b4fe" strokeWidth="3"/>
+                                                <line x1="-30" y1="27" x2="-60" y2="-3" stroke="#d8b4fe" strokeWidth="3"/>
+                                                <circle cx="-20" cy="-5" r="4" fill="#1e1b4b"/> <line x1="-20" y1="-5" x2="-20" y2="5" stroke="#3b82f6" strokeWidth="2"/>
+                                                {!viewMode && <text y="40" fontSize="12" fill="#4c1d95" textAnchor="middle" fontWeight="bold" style={{fontFamily:'Space Grotesk'}}>DREADNOUGHT Lv.{car.level}</text>}
+                                            </g>
+                                        )}
+                                        {car.type === 'nano' && (
+                                            <g>
+                                                <path d="M-40,-10 Q0,-25 40,-5 Q60,5 40,15 Q0,35 -40,20 Q-60,5 -40,-10 Z" fill="#065f46"/>
+                                                <path d="M-40,-15 Q0,-30 40,-10 Q60,0 40,10 Q0,30 -40,15 Q-60,0 -40,-15 Z" fill="#10b981" stroke="#022c22" strokeWidth="2"/>
+                                                <ellipse cx="0" cy="-2" rx="20" ry="10" fill="#022c22"/>
+                                                <circle cx="-10" cy="-2" r="4" fill="#34d399" className="animate-pulse"/>
+                                                <circle cx="10" cy="-2" r="4" fill="#34d399" className="animate-pulse"/>
+                                                <circle cx="30" cy="-2" r="4" fill="#022c22"/> <line x1="30" y1="-2" x2="30" y2="-12" stroke="#3b82f6" strokeWidth="2"/>
+                                                {!viewMode && <text y="35" fontSize="12" fill="#064e3b" textAnchor="middle" fontWeight="bold" style={{fontFamily:'Space Grotesk'}}>LEVIATHAN Lv.{car.level}</text>}
+                                            </g>
+                                        )}
+                                        <g transform="translate(-30, -5)">{Array.from({length: Math.min(car.level, 5)}).map((_, i) => (<circle key={i} cx={(i%3)*12} cy={Math.floor(i/3)*8} r="2" fill="#0f172a" opacity="0.6"/>))}</g>
+                                    </g>
+                                ))}
+
+                                {state.helicopters && state.helicopters.map(h => {
+                                    if (h.phase === 'reloading') return null; 
+                                    return (
+                                        <g key={h.id} transform={`translate(${h.x}, ${h.y}) rotate(${h.angle * 180 / Math.PI}) scale(1.5)`} className="pointer-events-none" style={{ filter: 'drop-shadow(0 25px 25px rgba(0,0,0,0.6))' }}>
+                                            <path d="M-10,0 Q-10,-5 5,-5 L15,0 L5,5 Q-10,5 -10,0 Z" fill="#475569" /> <circle cx="5" cy="0" r="3" fill="#cbd5e1" /> <line x1="-10" y1="0" x2="-25" y2="0" stroke="#1e293b" strokeWidth="2" /> <circle cx="-25" cy="0" r="2" fill="#ef4444" /> <line x1="-5" y1="-8" x2="15" y2="8" stroke="#ffffff" strokeWidth="1" className="animate-[spin_0.05s_linear_infinite]" /> 
+                                        </g>
+                                    );
+                                })}
+
+                                {state.tracers.map((tr, i) => {
+                                    if(tr.isNmcLaser) return <g key={i} className="pointer-events-none"><line x1={tr.x1} y1={tr.y1} x2={tr.x2} y2={tr.y2} className="laser-beam-outer" /><line x1={tr.x1} y1={tr.y1} x2={tr.x2} y2={tr.y2} className="laser-beam-inner" /></g>;
+                                    if(tr.isOrbital) return <g key={i} className="pointer-events-none"><line x1={tr.x1} y1={tr.y1} x2={tr.x2} y2={tr.y2} className="orbital-beam-outer" /><line x1={tr.x1} y1={tr.y1} x2={tr.x2} y2={tr.y2} className="orbital-beam-inner" /></g>;
+                                    if(tr.isAutoRifle) return <g key={i} className="pointer-events-none"><line x1={tr.x1} y1={tr.y1} x2={tr.x2} y2={tr.y2} className="auto-rifle-outer" /><line x1={tr.x1} y1={tr.y1} x2={tr.x2} y2={tr.y2} className="auto-rifle-inner" /></g>;
+                                    if(tr.isCarrierAA) return <g key={i} className="pointer-events-none"><line x1={tr.x1} y1={tr.y1} x2={tr.x2} y2={tr.y2} className="carrier-aa-outer" /><line x1={tr.x1} y1={tr.y1} x2={tr.x2} y2={tr.y2} className="carrier-aa-inner" /></g>;
+                                    if(tr.isWhiteLightning || tr.isLightning) return <polyline key={i} points={generateLightningPoints(tr.x1, tr.y1, tr.x2, tr.y2)} className="white-lightning" />;
+                                    if(tr.isRedLightning) return <polyline key={i} points={generateLightningPoints(tr.x1, tr.y1, tr.x2, tr.y2)} className="red-lightning" />;
+                                    if(tr.isChain) return <line key={i} x1={tr.x1} y1={tr.y1} x2={tr.x2} y2={tr.y2} className="chain-tracer" />;
+                                    return <line key={i} x1={tr.x1} y1={tr.y1} x2={tr.x2} y2={tr.y2} className={tr.isMg ? 'mg-tracer' : 'tracer'} style={{stroke: tr.color || '#fde047'}} />;
+                                })}
+
+                                {state.movements.map(m => {
+                                    let curX, curY, angle;
+                                    if (['anbc_jet', 'c2_jet', 'c3_swarm', 'orig_jet'].includes(m.type)) {
+                                        if (m.phase === 'outbound') { const tgt = state.countries.find(c=>c.id===m.toId); curX = m.startX + (tgt.cx - m.startX) * m.progress; curY = m.startY + (tgt.cy - m.startY) * m.progress; angle = Math.atan2(tgt.cy - m.startY, tgt.cx - m.startX) * 180 / Math.PI; } 
+                                        else { const car = state.carriers.find(x=>x.type === m.carrierType); curX = m.startX + (car.x - m.startX) * m.progress; curY = m.startY + (car.y - m.startY) * m.progress; angle = Math.atan2(car.y - m.startY, car.x - m.startX) * 180 / Math.PI; }
+                                        return (
+                                            <g key={m.id} transform={`translate(${curX}, ${curY}) rotate(${angle}) scale(1.8)`} className="pointer-events-none" style={{ filter: 'drop-shadow(0 20px 20px rgba(0,0,0,0.6))' }}>
+                                                {m.type === 'orig_jet' && <><path d="M-15,-8 L15,0 L-15,8 L-5,0 Z" fill="#94a3b8" stroke="#475569" strokeWidth="1"/><circle cx="2" cy="0" r="3" fill="#3b82f6"/></>}
+                                                {m.type === 'anbc_jet' && <><path d="M-15,-12 L10,0 L-15,12 Z" fill="#1e293b" stroke="#22c55e" strokeWidth="1"/><circle cx="0" cy="0" r="2" fill="#22c55e"/></>}
+                                                {m.type === 'c2_jet' && <><ellipse cx="0" cy="0" rx="12" ry="6" fill="#3b0764" stroke="#0ea5e9" strokeWidth="1"/><circle cx="0" cy="0" r="3" fill="#0ea5e9"/></>}
+                                                {m.type === 'c3_swarm' && <><circle cx="0" cy="-6" r="3" fill="#10b981"/><circle cx="-6" cy="6" r="3" fill="#10b981"/><circle cx="6" cy="6" r="3" fill="#10b981"/></>}
+                                            </g>
+                                        );
+                                    }
+                                    if (['anbc_ballistic', 'c2_emp', 'c3_nano', 'orig_missile'].includes(m.type)) {
+                                        const tgt = state.countries.find(c=>c.id===m.toId); curX = m.startX + (tgt.cx - m.startX) * m.progress; curY = m.startY + (tgt.cy - m.startY) * m.progress; angle = Math.atan2(tgt.cy - m.startY, tgt.cx - m.startX) * 180 / Math.PI;
+                                        return (
+                                            <g key={m.id} transform={`translate(${curX}, ${curY}) rotate(${angle})`} className="pointer-events-none">
+                                                <path d="M-15,-6 L15,0 L-15,6 Z" fill={m.type==='c2_emp'?'#a855f7':(m.type==='c3_nano'?'#10b981':(m.type==='orig_missile'?'#3b82f6':'#ea580c'))} />
+                                                <circle cx="-15" cy="0" r="6" fill="#fde047" className="animate-pulse" />
+                                                <line x1="-15" y1="0" x2="-40" y2="0" className="ballistic-trail" style={{stroke: m.type==='c2_emp'?'#c084fc':(m.type==='c3_nano'?'#34d399':(m.type==='orig_missile'?'#60a5fa':'#f97316'))}} />
+                                            </g>
+                                        );
+                                    }
+
+                                    const src = state.countries.find(c => c.id === m.fromId); const tgt = state.countries.find(c => c.id === m.toId); const p = state.players.find(x => x.id === m.ownerId); if (!src || !tgt || !p) return null;
+                                    curX = m.startX + (tgt.cx - m.startX) * m.progress; curY = m.startY + (tgt.cy - m.startY) * m.progress; angle = Math.atan2(tgt.cy - m.startY, tgt.cx - m.startX) * 180 / Math.PI;
+
+                                    return (
+                                        <g key={m.id} transform={`translate(${curX}, ${curY})`} className="pointer-events-none">
+                                            {m.type === WEAPONS.ARMY && (
+                                                <g style={{ filter: 'drop-shadow(0 10px 10px rgba(0,0,0,0.5))' }}>
+                                                    <rect x="-8" y="-6" width="16" height="12" fill="#475569" rx="2" /> <rect x="-6" y="-4" width="12" height="8" fill={p.color} rx="1" /> <circle cx="0" cy="0" r="3" fill="#0f172a" /> <line x1="0" y1="0" x2="8" y2="0" stroke="#0f172a" strokeWidth="2" transform={`rotate(${angle * -1})`} />
+                                                </g>
+                                            )}
+                                            {m.type === WEAPONS.AIR && (
+                                                <g transform={`rotate(${angle}) scale(1.6)`}>
+                                                    <path d="M-15,-8 L15,0 L-15,8 L-5,0 Z" fill="rgba(0,0,0,0.5)" transform="translate(-15, 25) scale(0.7)" style={{filter: 'blur(5px)'}} />
+                                                    <path d="M-15,-8 L15,0 L-15,8 L-5,0 Z" fill={p.color} stroke="#0f172a" strokeWidth="1"/> <path d="M-10,-4 L10,0 L-10,4 L-2,0 Z" fill="rgba(255,255,255,0.4)"/> <circle cx="2" cy="0" r="2" fill="#fff"/>
+                                                </g>
+                                            )}
+                                            {m.type === WEAPONS.NAVAL && (
+                                                <g transform={`rotate(${angle}) scale(1.6)`}>
+                                                    <path d="M-15,0 L-30,-15 L-25,0 L-30,15 Z" fill="rgba(255,255,255,0.6)" />
+                                                    <path d="M-15,-6 L10,-6 L20,0 L10,6 L-15,6 Z" fill="#334155" stroke={p.color} strokeWidth="1" style={{ filter: 'drop-shadow(0 5px 5px rgba(0,0,0,0.6))' }}/>
+                                                    <rect x="-8" y="-3" width="8" height="6" fill={p.color}/> <circle cx="-4" cy="0" r="1.5" fill="#fff"/>
+                                                </g>
+                                            )}
+                                        </g>
+                                    );
+                                })}
+
+                                {dragSource && !viewMode && <line x1={dragSource.cx} y1={dragSource.cy} x2={state.mouseX} y2={state.mouseY} className="drag-line" />}
+                                {state.popups.map((p, i) => <text key={i} x={p.x} y={p.y} fill={p.color} fontSize="26" className="combat-popup">{p.text}</text>)}
+                                {state.shockwaves.map((s, i) => <circle key={i} cx={s.x} cy={s.y} className={s.isEmp ? 'emp-shockwave' : 'shockwave'} />)}
+                            </svg>
+                        </div>
+                    </div>
+                    
+                    {gracePeriod > 0 && !viewMode && <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-10 font-black text-4xl text-slate-800 opacity-60 pointer-events-none font-['Space_Grotesk'] tracking-widest text-center drop-shadow-xl">PEACE TREATY<br/>{gracePeriod}s</div>}
+
+                    {!viewMode && (
+                        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20 flex gap-2 pointer-events-none">
+                            <div className={`panel-3d px-4 py-2 flex items-center gap-2 ${user.gold < 0 ? 'border-red-500' : ''}`}><Icon name="Coins" className={user.gold < 0 ? 'text-red-500' : 'text-yellow-600'} size={18} /><span className={`text-lg font-black font-['Space_Grotesk'] ${user.gold < 0 ? 'text-red-600' : 'text-slate-800'}`}>{Math.floor(user.gold)}</span></div>
+                            <div className="panel-3d px-4 py-2 flex items-center gap-2"><Icon name="Shield" className="text-blue-600" size={18} /><span className="text-lg font-black font-['Space_Grotesk'] text-slate-800">{Math.floor(state.countries.filter(c=>c.ownerId===1).reduce((s,c)=>s+c.army,0))}</span></div>
+                        </div>
+                    )}
+
+                    {/* Left side Leaderboard UI */}
+                    {!viewMode && (
+                        <div className="absolute bottom-4 left-4 z-20 flex flex-col gap-2">
+                            {shieldTimeLeft > 0 && <div className="bg-sky-500 text-white px-3 py-1.5 rounded-xl flex items-center gap-1 font-black text-[11px] shadow-md border-b-2 border-sky-700 w-fit"><Icon name="Lock" size={14} /> SHIELD: {shieldTimeLeft}s</div>}
+                            {user.fencesCount > 0 && <div className="bg-yellow-500 text-slate-900 px-3 py-1.5 rounded-xl flex items-center font-bold text-[11px] shadow-md border-b-2 border-yellow-700 w-fit gap-1"><Icon name="Fence" size={14}/> FENCES: {user.fencesCount}/5</div>}
+
+                            <div className="panel-3d p-4 w-56 pointer-events-auto opacity-95">
+                                <div className="flex items-center justify-between border-b border-slate-300 pb-2 mb-2">
+                                    <div className="flex items-center gap-3"><div className="w-12 h-12 rounded-full shadow-[0_0_10px_rgba(0,0,0,0.1)] border border-slate-300" style={{ background: `conic-gradient(${pieStops})` }}></div><h3 className="text-[11px] font-black text-slate-800 tracking-widest leading-tight">GLOBAL<br/>DOMINATION</h3></div>
+                                    <div className="flex flex-col gap-1"><button onClick={() => setShowDetailedStats(true)} className="text-blue-600 hover:text-blue-800 bg-slate-100 p-1.5 rounded"><Icon name="BarChart" size={14}/></button><button onClick={() => setShowLeaderboard(!showLeaderboard)} className="text-slate-500 hover:text-slate-800 bg-slate-100 p-1.5 rounded"><Icon name={showLeaderboard ? "EyeOff" : "Eye"} size={14}/></button></div>
+                                </div>
+                                {showLeaderboard && (
+                                    <div className="max-h-48 overflow-y-auto pr-1 space-y-1">
+                                        {leaderboard.map((p, idx) => (
+                                            <div key={p.id} className={`flex justify-between items-center text-[11px] font-bold p-1.5 rounded ${idx === 0 ? 'bg-gradient-to-r from-yellow-100 to-yellow-200 border border-yellow-300 text-slate-900' : 'text-slate-700'}`}>
+                                                <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-sm shadow-sm" style={{backgroundColor: p.color}}></div><span className={idx === 0 ? 'font-black text-yellow-700' : (p.id === 1 ? 'text-blue-600 font-black' : '')}>{p.name.substring(0,10)}</span></div>
+                                                <span className="px-1.5 py-0.5 rounded bg-white/50 border border-slate-200">{p.percent}%</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Detailed Stats Modal */}
+                    {showDetailedStats && !viewMode && (
+                        <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-md pointer-events-auto">
+                            <div className="panel-3d p-8 w-[90vw] max-w-5xl max-h-[85vh] overflow-y-auto relative slide-in-right border-0 shadow-[0_30px_60px_rgba(0,0,0,0.5)]">
+                                <button onClick={() => setShowDetailedStats(false)} className="absolute top-6 right-6 text-slate-400 hover:text-red-600 bg-slate-100 w-10 h-10 rounded-full flex items-center justify-center font-bold text-2xl btn-3d">&times;</button>
+                                <h2 className="text-3xl font-black mb-6 flex items-center gap-3 text-slate-800 font-['Space_Grotesk']"><Icon name="BarChart" size={32} className="text-blue-600"/> WAR INTELLIGENCE NETWORK</h2>
+                                <div className="flex gap-2 mb-6">
+                                    <button onClick={()=>setStatTab('All')} className={`px-6 py-2 rounded-full font-black text-xs tracking-widest transition-all ${statTab==='All' ? 'bg-blue-600 text-white shadow-[0_5px_15px_rgba(37,99,235,0.4)]' : 'bg-slate-200 text-slate-600 hover:bg-slate-300'}`}>GLOBAL VIEW</button>
+                                    {CONTINENTS.map(cont => (<button key={cont} onClick={()=>setStatTab(cont)} className={`px-6 py-2 rounded-full font-black text-xs tracking-widest transition-all ${statTab===cont ? 'bg-blue-600 text-white shadow-[0_5px_15px_rgba(37,99,235,0.4)]' : 'bg-slate-200 text-slate-600 hover:bg-slate-300'}`}>{cont.toUpperCase()}</button>))}
+                                </div>
+                                <table className="w-full text-left border-collapse">
+                                    <thead><tr><th className="bg-slate-100 text-slate-600 py-3 px-4 rounded-tl-xl border-b-2 border-slate-300">Commander Profile</th><th className="bg-slate-100 text-slate-600 py-3 px-4 border-b-2 border-slate-300">Controlled Area</th><th className="bg-slate-100 text-slate-600 py-3 px-4 border-b-2 border-slate-300">Total Army Deployed</th><th className="bg-slate-100 text-slate-600 py-3 px-4 border-b-2 border-slate-300">Economy (Gold)</th><th className="bg-slate-100 text-slate-600 py-3 px-4 rounded-tr-xl border-b-2 border-slate-300">Tech Level</th></tr></thead>
+                                    <tbody>
+                                        {leaderboard.map(p => {
+                                            const pState = state.players.find(x=>x.id===p.id); const tArmy = validCountriesForStats.filter(c=>c.ownerId===p.id).reduce((s,c)=>s+c.army,0); const techScore = pState.tech.mine + pState.tech.army + pState.tech.air + pState.tech.naval + pState.tech.nuke*5;
+                                            return (<tr key={p.id} className="border-b border-slate-200 hover:bg-slate-50 transition-colors"><td className="flex items-center gap-3 py-4 px-4 text-slate-800 font-bold"><div className="w-5 h-5 rounded shadow-sm" style={{backgroundColor: p.color}}></div> {p.name} {p.id === 1 ? "(You)" : ""}</td><td className="text-slate-800 px-4 font-['Space_Grotesk'] text-lg font-bold">{p.percent}%</td><td className="text-slate-800 px-4 font-['Space_Grotesk'] text-lg font-bold">{Math.floor(tArmy).toLocaleString()}</td><td className={`px-4 font-['Space_Grotesk'] text-lg font-bold ${pState.gold < 0 ? 'text-red-600' : 'text-yellow-600'}`}>{Math.floor(pState.gold).toLocaleString()}</td><td className="text-blue-600 px-4 font-['Space_Grotesk'] text-lg font-bold">Lv. {techScore}</td></tr>);
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+
+                    {!viewMode && (
+                        <div className="absolute top-4 right-20 z-20 w-64 pointer-events-auto">
+                            <div className="panel-3d overflow-hidden">
+                                <div className="bg-slate-800 p-2.5 flex justify-between items-center border-b border-slate-700"><h3 className="text-[10px] font-black text-white tracking-widest flex items-center gap-1.5"><Icon name="Activity" size={14} className="text-emerald-400"/> ACTION LOG</h3><button onClick={() => setShowActionLog(!showActionLog)} className="text-slate-400 hover:text-white"><Icon name={showActionLog ? "EyeOff" : "Eye"} size={14}/></button></div>
+                                {showActionLog && (
+                                    <div className="p-2 max-h-48 overflow-y-auto space-y-1.5 bg-white">
+                                        {state.actionLogs.map(log => (<div key={log.id} className={`text-[10px] font-bold p-1.5 rounded border-l-4 shadow-sm ${log.type === 'danger' ? 'bg-red-50 text-red-700 border-red-500' : (log.type === 'success' ? 'bg-emerald-50 text-emerald-700 border-emerald-500' : (log.type === 'warning' ? 'bg-yellow-50 text-yellow-700 border-yellow-500' : 'bg-slate-50 text-slate-700 border-blue-500'))}`}>{log.msg}</div>))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {!viewMode && (
+                        <div className="absolute right-4 top-4 flex flex-col gap-2 z-20">
+                            <button onClick={() => setShowCommandCenter(true)} className="panel-3d p-3 bg-blue-600 text-white btn-3d hover:bg-blue-500 border-blue-800 shadow-[0_5px_15px_rgba(37,99,235,0.4)]"><Icon name="Settings" size={20} className={showCommandCenter ? 'animate-spin' : ''} /></button>
+                            <button onClick={()=>handleZoom(1)} className="panel-3d p-2 text-slate-800 btn-3d hover:bg-slate-100"><Icon name="ZoomIn" size={16}/></button>
+                            <button onClick={()=>handleZoom(-1)} className="panel-3d p-2 text-slate-800 btn-3d hover:bg-slate-100"><Icon name="ZoomOut" size={16}/></button>
+                            <button onClick={()=>setMapLocked(!mapLocked)} className={`panel-3d p-2 btn-3d ${mapLocked ? 'bg-red-100 text-red-600 border-red-300' : 'text-slate-800 hover:bg-slate-100'}`}><Icon name={mapLocked ? "Lock" : "Unlock"} size={16}/></button>
+                            <button onClick={()=>setSoundOn(!soundOn)} className="panel-3d p-2 text-slate-800 btn-3d hover:bg-slate-100"><Icon name={soundOn ? "Volume2" : "VolumeX"} size={16}/></button>
+                            <button onClick={() => setViewMode(true)} className="panel-3d p-2 text-purple-600 btn-3d hover:bg-slate-100 mt-2"><Icon name="Video" size={16}/></button>
+                        </div>
+                    )}
+
+                    {viewMode && (
+                        <div className="absolute top-4 right-4 z-50">
+                            <button onClick={() => setViewMode(false)} className="panel-3d px-6 py-3 bg-red-600 hover:bg-red-500 text-white shadow-[0_10px_20px_rgba(220,38,38,0.4)] btn-3d font-black tracking-widest text-xs flex items-center gap-2 border-red-800"><Icon name="EyeOff" size={16}/> EXIT CINEMATIC</button>
+                        </div>
+                    )}
+
+                    <ChatBox players={state.players} userColor={user.color} />
+
+                    {showCommandCenter && <div className="absolute inset-0 z-30 bg-slate-900/40 backdrop-blur-sm transition-opacity" onClick={() => setShowCommandCenter(false)}></div>}
+                    <div className={`absolute right-0 top-0 h-full w-[400px] bg-white shadow-2xl z-40 sidebar ${showCommandCenter ? 'open' : ''} flex flex-col border-l border-slate-300`}>
+                        <div className="p-5 border-b border-slate-200 flex justify-between items-center bg-slate-50 shadow-sm z-10 shrink-0">
+                            <h2 className="text-xl font-black flex items-center gap-2 text-slate-800 font-['Space_Grotesk'] tracking-wide"><Icon name="Settings" className="text-blue-600" size={22}/> STRATEGY CONSOLE</h2>
+                            <button onClick={()=>setShowCommandCenter(false)} className="text-slate-400 hover:text-white hover:bg-red-500 text-xl font-bold bg-slate-200 w-8 h-8 rounded-full flex items-center justify-center transition-colors btn-3d">&times;</button>
+                        </div>
+                        
+                        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-100 relative pb-20">
+                            <div className="panel-3d p-4 border-b-4 border-sky-500 bg-sky-50">
+                                <div className="flex justify-between items-center mb-2"><div className="flex items-center gap-2 text-base font-black text-sky-800 font-['Space_Grotesk']"><Icon name="Lock" className="text-sky-500" size={20}/> EMPIRE SHIELD</div></div>
+                                <p className="text-[11px] text-sky-700/90 mb-3 font-bold leading-relaxed">Secures all territories for 150s. Invulnerable to attacks. You CAN attack others.</p>
+                                <button onClick={() => buyShield()} disabled={user.gold < UPGRADE_COSTS.shield || shieldTimeLeft > 0} className={`w-full py-2.5 rounded-xl text-xs font-black transition-all btn-3d ${shieldTimeLeft > 0 ? 'bg-sky-200 text-sky-600 border-sky-300' : (user.gold >= UPGRADE_COSTS.shield ? 'bg-sky-500 hover:bg-sky-400 text-white shadow-[0_0_10px_rgba(14,165,233,0.4)] border-sky-700' : 'bg-slate-200 text-slate-500 border-slate-300')}`}>{shieldTimeLeft > 0 ? `ACTIVE (${shieldTimeLeft}s)` : `DEPLOY SHIELD (1000g)`}</button>
+                            </div>
+
+                            {baseUpgrades.map(u => <UpgradeRow key={u.t} icon={<Icon name={u.i} className={u.col}/>} name={u.n} lvl={user.tech[u.t]} cost={UPGRADE_COSTS[u.t](user.tech[u.t])} canAfford={user.gold >= UPGRADE_COSTS[u.t](user.tech[u.t])} desc={u.d} locked={u.l} req={u.req} maxLvl={u.max} onClick={() => handleUpgrade(u.t)} />)}
+
+                            {user.tech.nuke > 0 && <button onClick={() => { cancelTargeting(); engine.current.targetingMissile = true; setShowCommandCenter(false); }} disabled={user.gold < UPGRADE_COSTS.missileLaunch} className={`w-full p-3 rounded-2xl font-black text-sm flex items-center justify-center gap-2 transition-all btn-3d ${user.gold >= UPGRADE_COSTS.missileLaunch ? 'bg-red-600 hover:bg-red-500 text-white shadow-[0_0_15px_rgba(220,38,38,0.5)] border-red-800' : 'bg-slate-200 text-slate-500 border-slate-300'}`}><Icon name="Rocket" size={20}/> LAUNCH MISSILE ({UPGRADE_COSTS.missileLaunch}g)</button>}
+
+                            {user.tech.nuke >= 3 && (
+                                <div className="mt-4 pt-3 border-t border-slate-300">
+                                    {!user.tech.autoLauncherUnlocked ? (
+                                        <button onClick={() => handleUpgrade('autoLauncherUnlock')} disabled={user.gold < 100000} className={`w-full p-3 rounded-xl font-black flex flex-col items-center justify-center gap-1 transition-all btn-3d ${user.gold >= 100000 ? 'bg-orange-600 hover:bg-orange-500 text-white shadow-[0_0_15px_rgba(234,88,12,0.5)] border-orange-800' : 'bg-slate-200 text-slate-500 border-slate-300'}`}><div className="flex items-center gap-2 text-xs"><Icon name="Rocket" size={16}/> UNLOCK TRINITY LAUNCHER (100K)</div></button>
+                                    ) : (
+                                        <button onClick={() => { cancelTargeting(); engine.current.targetingAutoLauncher = true; setShowCommandCenter(false); }} disabled={state.autoLauncher.active} className={`w-full p-3 rounded-xl font-black flex flex-col items-center justify-center gap-1 transition-all btn-3d ${state.autoLauncher.active ? 'bg-orange-100 text-orange-600 border-orange-300' : 'bg-orange-600 hover:bg-orange-500 text-white shadow-[0_0_15px_rgba(234,88,12,0.5)] border-orange-800'}`}><div className="flex items-center gap-2 text-xs"><Icon name="Rocket" size={16}/> {state.autoLauncher.active ? 'TRINITY LAUNCHER SAKRIYA HAI' : 'LINK 3 BASES FOR TRINITY'}</div><span className="text-[9px] font-bold text-center text-orange-800">Fires Nuke automatically every 120s at largest enemy.</span></button>
+                                    )}
+                                </div>
+                            )}
+
+                            <div className="mt-6 pt-4 border-t-2 border-dashed border-slate-300 relative">
+                                <span className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-slate-200 px-3 py-0.5 rounded-full font-black text-slate-600 tracking-widest text-[10px] border border-slate-300">BLACK PROJECTS</span>
+                                {user.tech.nuke < 1 && <div className="absolute inset-0 bg-white/80 backdrop-blur-[2px] z-10 flex items-center justify-center rounded-2xl mt-4"><div className="bg-slate-800 text-white font-black px-4 py-2 rounded-xl shadow-lg flex items-center gap-2 border border-slate-700 text-[10px]"><Icon name="Lock" size={14}/> REQUIRES NUCLEAR SILO</div></div>}
+                                <UpgradeRow icon={<Icon name="Flask" className="text-emerald-500"/>} name="R&D Security Wall" lvl={user.tech.rd} cost={UPGRADE_COSTS.rd(user.tech.rd)} canAfford={user.gold >= UPGRADE_COSTS.rd(user.tech.rd)} desc="Builds regenerating walls. Absorbs 300 damage per Lvl." maxLvl={50} onClick={() => handleUpgrade('rd')} />
+                            </div>
+
+                            <div className="mt-6 pt-4 border-t-2 border-dashed border-yellow-500 panel-3d p-4 relative bg-yellow-50">
+                                <span className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-yellow-400 text-slate-900 px-4 py-1 font-black tracking-widest text-[10px] border-b-2 border-yellow-600 rounded-full flex gap-1 items-center shadow-[0_0_10px_rgba(234,179,8,0.5)]"><Icon name="Crown" size={12}/> ADVANCED WARFARE</span>
+                                
+                                {!basicMaxed && <div className="absolute inset-0 bg-white/80 backdrop-blur-[3px] z-10 flex items-center justify-center rounded-2xl"><div className="bg-slate-800 text-yellow-400 font-black px-4 py-2 rounded-xl shadow-lg flex flex-col items-center gap-1 border border-slate-700 text-center"><Icon name="Lock" size={20}/> <span className="text-[10px]">MAX ALL BASIC TECH</span></div></div>}
+
+                                <div className="space-y-2 mb-4 mt-2">
+                                    <button onClick={() => { cancelTargeting(); engine.current.targetingCannonDeploy = true; setShowCommandCenter(false); }} className="w-full p-2.5 rounded-xl font-black flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-white shadow-md btn-3d border-slate-900 text-xs"><Icon name="Target" className="text-yellow-400" size={16}/> DEPLOY AUTO-CANNON (5K)</button>
+                                    {hasDeployedCannon && <button onClick={() => handleUpgrade('upgrade_cannons')} className="w-full p-2.5 rounded-xl font-black flex flex-col items-center justify-center bg-yellow-600 hover:bg-yellow-500 text-white shadow-[0_0_10px_rgba(202,138,4,0.4)] btn-3d border-yellow-700 text-xs"><span>UPGRADE ALL CANNONS (Max Lv.5)</span><span className="text-[9px] font-bold text-yellow-900">Cap +3000, Dmg +50/s (Cost varies)</span></button>}
+                                    <button onClick={() => { cancelTargeting(); engine.current.targetingSupporter = true; setShowCommandCenter(false); }} disabled={user.gold < UPGRADE_COSTS.supporter || !hasMaxCannon || user.supportersCount >= 4} className={`w-full p-2.5 rounded-xl font-bold flex flex-col items-center justify-center gap-0.5 btn-3d ${user.gold >= UPGRADE_COSTS.supporter && hasMaxCannon && user.supportersCount < 4 ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-800' : 'bg-slate-200 text-slate-500 border-slate-300'}`}><div className="flex items-center gap-1 text-xs"><Icon name="Truck" size={14}/> AC SUPPORTER (50K) [{user.supportersCount}/4]</div><span className="text-[9px] text-center">Auto-moves Lv5 Cannon to frontline. Dmg 2x.</span></button>
+                                </div>
+
+                                <div className="space-y-2">
+                                    {advUpgrades.map(u => <UpgradeRow key={u.t} icon={<Icon name={u.i} className={u.col}/>} name={u.n} lvl={user.tech[u.t]} cost={UPGRADE_COSTS[u.t](user.tech[u.t])} canAfford={user.gold >= UPGRADE_COSTS[u.t](user.tech[u.t])} desc={u.d} maxLvl={u.max} onClick={() => handleUpgrade(u.t)} />)}
+                                </div>
+                                
+                                <div className="mt-5 pt-4 border-t-2 border-purple-200 relative space-y-2">
+                                    {(!advMaxed || !rdMaxed) && <div className="absolute inset-0 bg-white/80 backdrop-blur-[2px] z-10 flex items-center justify-center rounded-xl"><div className="bg-purple-900 text-purple-200 font-black px-3 py-1.5 rounded-lg shadow-md flex items-center gap-1 border border-purple-700 text-[10px]"><Icon name="Lock" size={12}/> MAX ADV. TECH & R&D</div></div>}
+                                    
+                                    {!hasDeployedNMC ? (
+                                        <button onClick={() => { cancelTargeting(); engine.current.targetingNMC = true; setShowCommandCenter(false); }} disabled={user.gold < UPGRADE_COSTS.nmcDeploy} className={`w-full p-3 rounded-xl font-black flex flex-col items-center justify-center gap-1 transition-all btn-3d ${user.gold >= UPGRADE_COSTS.nmcDeploy ? 'bg-purple-600 hover:bg-purple-500 text-white shadow-[0_0_15px_rgba(147,51,234,0.5)] border-purple-800 animate-pulse' : 'bg-slate-200 text-slate-500 border-slate-300'}`}><div className="flex items-center gap-1 text-xs"><Icon name="Radiation" className="text-white" size={16}/> DEPLOY MULTI-CANNON</div><span className="text-[9px] font-bold font-sans text-purple-200">Global Range | Targets Islands | Needs 10K Army</span></button>
+                                    ) : (
+                                        <button onClick={() => handleUpgrade('upgrade_nmc')} disabled={user.gold < UPGRADE_COSTS.nmcUp(user.tech.nmc)} className={`w-full p-3 rounded-xl font-black flex flex-col items-center justify-center gap-1 transition-all btn-3d ${user.tech.nmc>=11 ? 'bg-emerald-100 text-emerald-700 border-emerald-300' : (user.gold >= UPGRADE_COSTS.nmcUp(user.tech.nmc) ? 'bg-purple-600 hover:bg-purple-500 text-white shadow-[0_0_15px_rgba(147,51,234,0.5)] border-purple-800' : 'bg-slate-200 text-slate-500 border-slate-300')}`}><div className="flex items-center gap-1 text-xs"><Icon name="Radiation" className={user.tech.nmc>=11?'text-emerald-700':'text-white'} size={16}/> {user.tech.nmc>=11 ? 'MASTER NMC ACTIVE' : 'UPGRADE MULTI-CANNON'}</div><span className="text-[9px] font-bold font-sans text-purple-200">Level: {user.tech.nmc}/11 | Attack: Har {user.tech.nmc === 11 ? 5 : 20 - (user.tech.nmc - 1)}s mein</span>{user.tech.nmc < 11 && <span className="text-[9px] text-white bg-purple-800 px-1.5 py-0.5 rounded mt-0.5">COST: {UPGRADE_COSTS.nmcUp(user.tech.nmc).toLocaleString()}g</span>}</button>
+                                    )}
+
+                                    {state.carriers[0].unlocked && (
+                                        <div className="mt-2 pt-2 border-t border-purple-200">
+                                            {!state.carriers[0].active ? (
+                                                <button onClick={() => { cancelTargeting(); engine.current.targetingCarrierId = 0; setShowCommandCenter(false); }} disabled={user.gold < UPGRADE_COSTS.carrierDeploy} className={`w-full p-2.5 rounded-lg font-black flex justify-between items-center transition-all btn-3d ${user.gold >= UPGRADE_COSTS.carrierDeploy ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-[0_0_10px_rgba(37,99,235,0.4)] border-blue-800' : 'bg-slate-200 text-slate-500 border-slate-300'}`}><span className="text-[10px] flex items-center gap-1"><Icon name="Anchor" size={12}/> ORIGINAL CARRIER</span><span className="text-[9px]">90K Gold</span></button>
+                                            ) : (
+                                                <button onClick={() => handleUpgrade('upgrade_carrier_0')} disabled={user.gold < UPGRADE_COSTS.carrierUp(state.carriers[0].level)} className={`w-full p-2.5 rounded-lg font-black flex justify-between items-center transition-all btn-3d ${state.carriers[0].level>=10 ? 'bg-emerald-100 text-emerald-700 border-emerald-300' : (user.gold >= UPGRADE_COSTS.carrierUp(state.carriers[0].level) ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-[0_0_10px_rgba(37,99,235,0.4)] border-blue-800' : 'bg-slate-200 text-slate-500 border-slate-300')}`}><span className="text-[10px] flex items-center gap-1"><Icon name="Anchor" size={12}/> UPGRADE ORIGINAL CARRIER (Lv.{state.carriers[0].level})</span>{state.carriers[0].level < 10 && <span className="text-[9px]">{UPGRADE_COSTS.carrierUp(state.carriers[0].level).toLocaleString()}g</span>}</button>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    <div className="space-y-2 mt-3 pt-3 border-t border-slate-300">
+                                        <h3 className="font-black text-blue-600 tracking-widest text-[10px] text-center">NAVAL SUPER-CARRIERS</h3>
+                                        {[
+                                            { id: 1, name: 'TACTICAL CARRIER', key: 'carrier1Unlocked', col: 'bg-blue-600 border-blue-800 shadow-[0_0_10px_rgba(37,99,235,0.4)]' },
+                                            { id: 2, name: 'DREADNOUGHT', key: 'carrier2Unlocked', col: 'bg-purple-600 border-purple-800 shadow-[0_0_10px_rgba(147,51,234,0.4)]' },
+                                            { id: 3, name: 'LEVIATHAN', key: 'carrier3Unlocked', col: 'bg-teal-600 border-teal-800 shadow-[0_0_10px_rgba(13,148,136,0.4)]' }
+                                        ].map(car => (
+                                            <div key={car.id}>
+                                                {!user.tech[car.key] ? (
+                                                    <button onClick={() => handleUpgrade(`unlock_carrier_${car.id}`)} disabled={user.gold < UPGRADE_COSTS.carrierUnlock} className={`w-full p-2.5 rounded-lg font-black flex justify-between items-center transition-all btn-3d ${user.gold >= UPGRADE_COSTS.carrierUnlock ? `${car.col} hover:opacity-90 text-white` : 'bg-slate-200 text-slate-500 border-slate-300'}`}><span className="text-[10px] flex items-center gap-1"><Icon name="Anchor" size={12}/> UNLOCK {car.name}</span><span className="text-[9px]">2 Crore</span></button>
+                                                ) : !state.carriers[car.id].active ? (
+                                                    <button onClick={() => { cancelTargeting(); engine.current.targetingCarrierId = car.id; setShowCommandCenter(false); }} disabled={user.gold < UPGRADE_COSTS.carrierDeploy} className={`w-full p-2.5 rounded-lg font-black flex justify-between items-center transition-all btn-3d ${user.gold >= UPGRADE_COSTS.carrierDeploy ? `${car.col} hover:opacity-90 text-white animate-pulse` : 'bg-slate-200 text-slate-500 border-slate-300'}`}><span className="text-[10px] flex items-center gap-1"><Icon name="Anchor" size={12}/> DEPLOY {car.name}</span><span className="text-[9px]">90K Gold</span></button>
+                                                ) : (
+                                                    <button onClick={() => handleUpgrade(`upgrade_carrier_${car.id}`)} disabled={user.gold < UPGRADE_COSTS.carrierUp(state.carriers[car.id].level)} className={`w-full p-2.5 rounded-lg font-black flex justify-between items-center transition-all btn-3d ${state.carriers[car.id].level>=10 ? 'bg-emerald-100 text-emerald-700 border-emerald-300' : (user.gold >= UPGRADE_COSTS.carrierUp(state.carriers[car.id].level) ? `${car.col} hover:opacity-90 text-white` : 'bg-slate-200 text-slate-500 border-slate-300')}`}><span className="text-[10px] flex items-center gap-1"><Icon name="Anchor" size={12}/> UPGRADE {car.name} (Lv.{state.carriers[car.id].level})</span>{state.carriers[car.id].level < 10 && <span className="text-[9px]">{UPGRADE_COSTS.carrierUp(state.carriers[car.id].level).toLocaleString()}g</span>}</button>
+                                                )}
+                                            </div>
+                                        ))}
+                                        
+                                        {!user.tech.heliUnlocked ? (
+                                            <button onClick={() => handleUpgrade('heli_unlock')} disabled={user.gold < 5000000 || !allCarriersMaxed} className={`w-full mt-2 p-2.5 rounded-lg font-black flex justify-between items-center transition-all btn-3d ${user.gold >= 5000000 && allCarriersMaxed ? 'bg-orange-500 hover:bg-orange-400 text-white shadow-[0_0_10px_rgba(249,115,22,0.4)] border-orange-700' : 'bg-slate-200 text-slate-500 border-slate-300'}`}><span className="text-[10px] flex items-center gap-1"><Icon name="Target" size={12}/> UNLOCK HELICOPTER SQUADRONS</span><span className="text-[9px]">5M Gold</span></button>
+                                        ) : (
+                                            <div className="w-full mt-2 p-2.5 rounded-lg font-black flex justify-between items-center transition-all bg-emerald-100 text-emerald-700 border-emerald-300"><span className="text-[10px] flex items-center gap-1"><Icon name="Target" size={12}/> HELICOPTERS ACTIVE</span></div>
+                                        )}
+
+                                        {allCarriersMaxed && (
+                                            <div className="mt-2 pt-2 border-t border-slate-300">
+                                                <button onClick={() => { cancelTargeting(); engine.current.targetingAutoRifle = true; setShowCommandCenter(false); }} className="w-full p-2.5 rounded-lg font-black flex flex-col justify-center items-center transition-all btn-3d bg-emerald-600 hover:bg-emerald-500 text-white shadow-[0_0_10px_rgba(5,150,105,0.4)] border-emerald-800"><span className="text-[10px] flex items-center gap-1"><Icon name="Target" size={12}/> DEPLOY AUTO-RIFLE BASE</span><span className="text-[8px] text-emerald-200">Costs 1-2L Gold/sec | 100 Dmg/sec</span></button>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* ISLAND TESLA UPGRADE */}
+                                    <div className="space-y-2 mt-3 pt-3 border-t border-slate-300">
+                                        <h3 className="font-black text-blue-600 tracking-widest text-[10px] text-center">ISLAND WEAPONRY</h3>
+                                        <button onClick={() => handleUpgrade('activate_island')} disabled={user.gold < UPGRADE_COSTS.islandTesla || !ownsAnIsland || user.tech.islandTeslaActive} className={`w-full p-2.5 rounded-lg font-black flex justify-between items-center transition-all btn-3d ${user.tech.islandTeslaActive ? 'bg-cyan-100 text-cyan-700 border-cyan-300 cursor-default' : (user.gold >= UPGRADE_COSTS.islandTesla && ownsAnIsland ? 'bg-cyan-500 hover:bg-cyan-400 text-white shadow-[0_0_10px_rgba(6,182,212,0.4)] border-cyan-700' : 'bg-slate-200 text-slate-500 border-slate-300')}`}><span className="text-[10px] flex items-center gap-1"><Icon name="Zap" size={12}/> {user.tech.islandTeslaActive ? 'TESLA CITY ONLINE' : 'ACTIVATE ISLAND TESLA'}</span><span className="text-[9px]">{user.tech.islandTeslaActive ? '' : '1M Gold'}</span></button>
+                                        {user.tech.islandTeslaActive && (
+                                            <button onClick={() => handleUpgrade('activate_island_aa')} disabled={user.gold < UPGRADE_COSTS.islandAA || user.tech.islandAAActive} className={`w-full p-2.5 rounded-lg font-black flex justify-between items-center transition-all btn-3d ${user.tech.islandAAActive ? 'bg-red-100 text-red-700 border-red-300 cursor-default' : (user.gold >= UPGRADE_COSTS.islandAA ? 'bg-red-600 hover:bg-red-500 text-white shadow-[0_0_10px_rgba(220,38,38,0.4)] border-red-800' : 'bg-slate-200 text-slate-500 border-slate-300')}`}><span className="text-[10px] flex items-center gap-1"><Icon name="Radar" size={12}/> {user.tech.islandAAActive ? 'RED LIGHTNING AA ACTIVE' : 'UNLOCK RED LIGHTNING AA'}</span><span className="text-[9px]">{user.tech.islandAAActive ? '' : '2M Gold'}</span></button>
+                                        )}
+                                        <p className="text-[8px] text-slate-500 text-center leading-tight">Loops infinitely: Attacks for 2 mins, recharges for 1 min.</p>
+                                    </div>
+
+                                    {/* APEX TECHNOLOGIES */}
+                                    <div className="mt-4 border-t border-slate-300 pt-3 space-y-2">
+                                        <h3 className="font-black text-blue-600 tracking-widest text-[10px] text-center">APEX TECHNOLOGIES</h3>
+                                        <button onClick={() => { cancelTargeting(); engine.current.targetingDeployArmy = true; setShowCommandCenter(false); }} disabled={user.gold < 4500000} className={`w-full p-2.5 rounded-lg font-black flex justify-between items-center transition-all btn-3d ${user.gold >= 4500000 ? 'bg-orange-500 hover:bg-orange-400 text-white shadow-[0_0_10px_rgba(249,115,22,0.4)] border-orange-700' : 'bg-slate-200 text-slate-500 border-slate-300'}`}><span className="text-[10px] flex items-center gap-1"><Icon name="Sword" size={12}/> DEPLOY ARMY (3000 Troops)</span><span className="text-[9px]">45L Gold</span></button>
+                                        <button onClick={() => { cancelTargeting(); engine.current.targetingOrbital = true; setShowCommandCenter(false); }} disabled={user.gold < UPGRADE_COSTS.orbital} className={`w-full p-2.5 rounded-lg font-black flex justify-between items-center transition-all btn-3d ${user.gold >= UPGRADE_COSTS.orbital ? 'bg-cyan-500 hover:bg-cyan-400 text-white shadow-[0_0_10px_rgba(6,182,212,0.4)] border-cyan-700' : 'bg-slate-200 text-slate-500 border-slate-300'}`}><span className="text-[10px] flex items-center gap-1"><Icon name="Radar" size={12}/> ION ORBITAL STRIKE</span><span className="text-[9px]">3M Gold</span></button>
+                                        <button onClick={() => { cancelTargeting(); engine.current.targetingEMP = true; setShowCommandCenter(false); }} disabled={user.gold < UPGRADE_COSTS.emp} className={`w-full p-2.5 rounded-lg font-black flex justify-between items-center transition-all btn-3d ${user.gold >= UPGRADE_COSTS.emp ? 'bg-indigo-500 hover:bg-indigo-400 text-white shadow-[0_0_10px_rgba(99,102,241,0.4)] border-indigo-700' : 'bg-slate-200 text-slate-500 border-slate-300'}`}><span className="text-[10px] flex items-center gap-1"><Icon name="Zap" size={12}/> EMP SHOCKWAVE</span><span className="text-[9px]">1M Gold</span></button>
+                                        <UpgradeRow icon={<Icon name="Network" className="text-pink-500" size={16}/>} name="Quantum Relay" lvl={user.tech.quantum?1:0} cost={UPGRADE_COSTS.quantum} canAfford={user.gold >= UPGRADE_COSTS.quantum} desc="Instant Army Transfers." maxLvl={1} onClick={() => handleUpgrade('quantum')} />
+                                        <UpgradeRow icon={<Icon name="Shield" className="text-teal-500" size={16}/>} name="Nanobot Armor" lvl={user.tech.nano?1:0} cost={UPGRADE_COSTS.nano} canAfford={user.gold >= UPGRADE_COSTS.nano} desc="Walls have 2x Cap & 5x Heal." maxLvl={1} onClick={() => handleUpgrade('nano')} />
+                                        <UpgradeRow icon={<Icon name="Plane" className="text-gray-500" size={16}/>} name="Stealth Squadron" lvl={user.tech.stealth?1:0} cost={UPGRADE_COSTS.stealth} canAfford={user.gold >= UPGRADE_COSTS.stealth} desc="Jets immune to MG. 1.5x Dmg." maxLvl={1} onClick={() => handleUpgrade('stealth')} />
+                                    </div>
+                                </div>
+
+                                <div className="mt-5 pt-3 border-t-2 border-slate-300 relative">
+                                    <h3 className="font-black text-slate-800 mb-1.5 tracking-widest text-center text-xs">AUTOMATION</h3>
+                                    {(!advMaxed || !rdMaxed || !hasDeployedNMC || !state.carriers[0].active) && (<div className="absolute inset-0 bg-white/80 backdrop-blur-[2px] z-10 flex items-center justify-center rounded-xl"></div>)}
+                                    <UpgradeRow icon={<Icon name="Cpu" className="text-slate-800"/>} name="Auto-Pilot Commander" lvl={user.tech.autoTech} cost={UPGRADE_COSTS.autoTech(user.tech.autoTech)} canAfford={user.gold >= UPGRADE_COSTS.autoTech(user.tech.autoTech)} desc="Lvl 3 auto-attacks nearest enemies using Army/Air/Naval." maxLvl={3} onClick={() => handleUpgrade('autoTech')} />
+                                    {user.tech.autoTech === 3 && ( <button onClick={() => { user.commanderActive = !user.commanderActive; setTick(t=>t+1); }} className={`w-full mt-3 p-2.5 rounded-xl font-bold transition-all border-2 ${user.commanderActive ? 'bg-red-100 text-red-700 border-red-300 hover:bg-red-200' : 'bg-emerald-100 text-emerald-700 border-emerald-300 hover:bg-emerald-200'}`}>{user.commanderActive ? 'DISABLE COMMANDER' : 'ENABLE COMMANDER'}</button> )}
+                                </div>
+                                
+                                <div className="mt-5 pt-3 border-t-2 border-slate-300 relative">
+                                    <h3 className="font-black text-slate-800 mb-1.5 tracking-widest text-center text-xs">ULTIMATE DEFENSE</h3>
+                                    {(!advMaxed || !rdMaxed) && (<div className="absolute inset-0 bg-white/80 backdrop-blur-[2px] z-10 flex items-center justify-center rounded-xl"></div>)}
+                                    {!user.tech.fenceUnlocked ? (
+                                        <button onClick={() => handleUpgrade('ultimateFenceUnlock')} disabled={user.gold < UPGRADE_COSTS.ultimateFenceUnlock} className={`w-full p-3 rounded-xl font-black flex flex-col items-center justify-center gap-1 transition-all btn-3d ${user.gold >= UPGRADE_COSTS.ultimateFenceUnlock ? 'bg-yellow-500 hover:bg-yellow-400 text-slate-900 shadow-md border-yellow-700' : 'bg-slate-300 text-slate-500 border-slate-400'}`}><div className="flex items-center gap-1 text-xs"><Icon name="Fence" size={16}/> UNLOCK SECURITY FENCE</div><span className="text-[9px] text-center font-bold text-yellow-800">Unbreakable shield. Maintenace: 5L/base/5min.</span><span className="text-[9px] bg-slate-900 text-yellow-400 px-1.5 py-0.5 rounded mt-0.5">COST: {(UPGRADE_COSTS.ultimateFenceUnlock/1000000)}M Gold</span></button>
+                                    ) : (
+                                        <button onClick={() => { cancelTargeting(); engine.current.targetingFence = true; setShowCommandCenter(false); }} disabled={user.fencesCount >= 5} className={`w-full p-3 rounded-xl font-black flex flex-col items-center justify-center gap-1 transition-all btn-3d ${user.fencesCount < 5 ? 'bg-yellow-500 hover:bg-yellow-400 text-slate-900 shadow-md border-yellow-700' : 'bg-slate-300 text-slate-500 border-slate-400'}`}><div className="flex items-center gap-1 text-xs"><Icon name="Fence" size={16}/> APPLY ULTIMATE FENCE ({user.fencesCount}/5)</div><span className="text-[9px] text-center font-bold">Click map base to apply unbreakable shield.</span></button>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="h-6"></div>
+                        </div>
+                    </div>
+
+                    {/* Targeting Indicators */}
+                    {state.targetingMissile && <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-20 bg-red-600 text-white px-6 py-2.5 rounded-full font-black text-sm flex items-center gap-2 animate-pulse shadow-md tracking-widest border-2 border-red-400 pointer-events-none"><Icon name="Crosshair" size={18} /> SELECT TARGET</div>}
+                    {state.targetingCannonDeploy && <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-20 bg-yellow-400 text-slate-900 px-6 py-2.5 rounded-full font-black text-sm flex items-center gap-2 animate-pulse shadow-md tracking-widest border-2 border-yellow-200 pointer-events-none"><Icon name="Target" size={18} /> SELECT BASE FOR CANNON</div>}
+                    {state.targetingNMC && <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-20 bg-purple-600 text-white px-6 py-2.5 rounded-full font-black text-sm flex items-center gap-2 animate-pulse shadow-md tracking-widest border-2 border-purple-400 pointer-events-none"><Icon name="Radiation" size={18} /> SELECT BASE FOR NMC</div>}
+                    {state.targetingCarrierId !== null && <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-20 bg-blue-600 text-white px-6 py-2.5 rounded-full font-black text-sm flex items-center gap-2 animate-pulse shadow-md tracking-widest border-2 border-blue-400 pointer-events-none"><Icon name="Anchor" size={18} /> TETHER CARRIER TO BASE</div>}
+                    {state.targetingFence && <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-20 bg-yellow-500 text-slate-900 px-6 py-2.5 rounded-full font-black text-sm flex items-center gap-2 animate-pulse shadow-md tracking-widest border-2 border-yellow-300 pointer-events-none"><Icon name="Fence" size={18} /> SELECT BASE FOR FENCE</div>}
+                    {state.targetingSupporter && <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-20 bg-emerald-500 text-white px-6 py-2.5 rounded-full font-black text-sm flex items-center gap-2 animate-pulse shadow-md tracking-widest border-2 border-emerald-300 pointer-events-none"><Icon name="Truck" size={18} /> SELECT CANNON FOR SUPPORTER</div>}
+                    {state.targetingAutoLauncher && <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-20 bg-orange-500 text-white px-6 py-2.5 rounded-full font-black text-sm flex items-center gap-2 animate-pulse shadow-md tracking-widest border-2 border-orange-300 pointer-events-none"><Icon name="Rocket" size={18} /> SELECT 3 BASES ({state.autoLauncher.bases.length}/3)</div>}
+                    {state.targetingOrbital && <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-20 bg-cyan-500 text-white px-6 py-2.5 rounded-full font-black text-sm flex items-center gap-2 animate-pulse shadow-md tracking-widest border-2 border-cyan-300 pointer-events-none"><Icon name="Radar" size={18} /> TARGET ORBITAL STRIKE</div>}
+                    {state.targetingEMP && <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-20 bg-indigo-500 text-white px-6 py-2.5 rounded-full font-black text-sm flex items-center gap-2 animate-pulse shadow-md tracking-widest border-2 border-indigo-300 pointer-events-none"><Icon name="Zap" size={18} /> SELECT AREA FOR EMP</div>}
+                    {state.targetingAutoRifle && <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-20 bg-emerald-600 text-white px-6 py-2.5 rounded-full font-black text-sm flex items-center gap-2 animate-pulse shadow-md tracking-widest border-2 border-emerald-400 pointer-events-none"><Icon name="Target" size={18} /> SELECT BASE FOR AUTO-RIFLE</div>}
+                    {state.targetingDeployArmy && <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-20 bg-orange-500 text-white px-6 py-2.5 rounded-full font-black text-sm flex items-center gap-2 animate-pulse shadow-md tracking-widest border-2 border-orange-300 pointer-events-none"><Icon name="Sword" size={18} /> SELECT BASE TO DEPLOY ARMY</div>}
+
+                    {gameOver && (
+                        <div className="absolute inset-0 bg-slate-900/90 backdrop-blur-xl z-50 flex items-center justify-center pointer-events-auto">
+                            <div className="bg-slate-800 p-10 rounded-[2rem] text-center max-w-xl shadow-[0_0_80px_rgba(0,0,0,1)] border-2 border-slate-700 relative overflow-hidden">
+                                <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
+                                <div className="relative z-10">
+                                    {winner === "User" ? ( <><Icon name="Crown" size={80} className="mx-auto text-yellow-400 mb-4 drop-shadow-[0_0_20px_rgba(250,204,21,0.6)]"/><h2 className="text-6xl font-black text-white mb-2 font-['Space_Grotesk']">VICTORY</h2></> ) : ( <><Icon name="Skull" size={80} className="mx-auto text-red-500 mb-4 drop-shadow-[0_0_20px_rgba(239,68,68,0.6)]"/><h2 className="text-6xl font-black text-red-500 mb-2 font-['Space_Grotesk']">DEFEATED</h2></> )}
+                                    <p className="text-slate-300 text-lg font-bold mb-8">The world has been reshaped.</p>
+                                    <button onClick={() => window.location.reload()} className="bg-blue-600 hover:bg-blue-500 text-white font-black py-4 px-12 rounded-xl text-xl w-full shadow-lg btn-3d border-blue-800 transition-colors">PLAY AGAIN</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
